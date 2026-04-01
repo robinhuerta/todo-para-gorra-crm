@@ -12,15 +12,35 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+import { useFirestore } from '../hooks/useFirestore';
+
+interface Client {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  type: string;
+  status: string;
+  createdAt?: any;
+}
+
 const Clients: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { data: clients, loading, add, remove } = useFirestore<Client>('clients');
 
-  const clients = [
-    { id: 1, name: 'Juan Pérez', company: 'Textiles del Sur', email: 'juan@textiles.com', phone: '987 654 321', type: 'VIP', status: 'Activo' },
-    { id: 2, name: 'María Garcia', company: 'Gorra Urban S.A.', email: 'm.garcia@urban.pe', phone: '912 345 678', type: 'Frecuente', status: 'Activo' },
-    { id: 3, name: 'Roberto Lima', company: 'Construcciones Norte', email: 'rlima@norte.com', phone: '955 444 333', type: 'Nuevo', status: 'Inactivo' },
-    { id: 4, name: 'Empresa ABC', company: 'ABC Importaciones', email: 'info@abc.com', phone: '900 111 222', type: 'VIP', status: 'Activo' },
-  ];
+  const handleAddClient = async () => {
+    // Simplified for demonstration, usually a modal/form would be here
+    const newClient = {
+      name: 'Nuevo Cliente',
+      company: 'Empresa Demo',
+      email: 'demo@empresa.com',
+      phone: '999 000 111',
+      type: 'Nuevo',
+      status: 'Activo'
+    };
+    await add(newClient);
+  };
 
   return (
     <div className="space-y-6">
@@ -29,11 +49,20 @@ const Clients: React.FC = () => {
           <h2 className="text-3xl font-bold font-outfit">Gestión de <span className="text-gradient">Clientes</span></h2>
           <p className="text-slate-500 mt-1">Directorio completo de compradores y socios comerciales.</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 shadow-lg shadow-violet-500/20">
+        <button 
+          onClick={handleAddClient}
+          className="btn-primary flex items-center gap-2 shadow-lg shadow-violet-500/20"
+        >
           <UserPlus size={18} />
           Registrar Cliente
         </button>
       </div>
+
+      {loading && (
+        <div className="flex justify-center p-12">
+          <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+        </div>
+      )}
 
       <div className="glass p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1">

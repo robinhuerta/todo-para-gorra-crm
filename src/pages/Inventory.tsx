@@ -12,20 +12,26 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+import { useFirestore } from '../hooks/useFirestore';
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: 'machinery' | 'parts' | 'caps';
+  brand: string;
+  price: string;
+  stock: number;
+  status: string;
+}
+
 const Inventory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'machinery' | 'parts' | 'caps'>('machinery');
+  const { data: items, loading, add } = useFirestore<InventoryItem>('inventory');
 
   const categories = [
-    { id: 'machinery', label: 'Maquinaria', icon: Truck, count: 24, color: '#f59e0b' },
-    { id: 'parts', label: 'Repuestos', icon: Settings, count: 156, color: '#22d3ee' },
-    { id: 'caps', label: 'Gorras Imp.', icon: Package, count: 420, color: '#a78bfa' },
-  ];
-
-  const items = [
-    { id: 'M-001', name: 'Máquina Bordadora 12 Cabezales', category: 'machinery', brand: 'Tajima', price: '$24,500', stock: 2, status: 'In Stock' },
-    { id: 'M-002', name: 'Prensa de Calor Neumática', category: 'machinery', brand: 'HIX', price: '$3,800', stock: 5, status: 'Bajo Stock' },
-    { id: 'R-042', name: 'Cabezal de Repuesto X-40', category: 'parts', brand: 'Universal', price: '$450', stock: 12, status: 'In Stock' },
-    { id: 'G-102', name: 'Snapback Premium Wool', category: 'caps', brand: 'Importada', price: '$12.50', stock: 200, status: 'In Stock' },
+    { id: 'machinery', label: 'Maquinaria', icon: Truck, count: items.filter(i => i.category === 'machinery').length, color: '#f59e0b' },
+    { id: 'parts', label: 'Repuestos', icon: Settings, count: items.filter(i => i.category === 'parts').length, color: '#22d3ee' },
+    { id: 'caps', label: 'Gorras Imp.', icon: Package, count: items.filter(i => i.category === 'caps').length, color: '#a78bfa' },
   ];
 
   const filteredItems = items.filter(item => activeTab === 'all' || item.category === activeTab);
