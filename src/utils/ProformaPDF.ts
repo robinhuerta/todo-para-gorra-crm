@@ -22,21 +22,31 @@ export const generateProformaPDF = (data: ProformaData) => {
   const doc = new jsPDF();
   const primaryColor = '#8b5cf6'; // Violet
   const darkColor = '#0f172a';
+  const logoUrl = 'https://media.canva.com/v2/image-resize/format:PNG/height:150/quality:100/uri:ifs%3A%2F%2FM%2Fdea694ae-edd7-4dae-ae10-83f75208d44b/watermark:F/width:150?csig=AAAAAAAAAAAAAAAAAAAAALJZo7LmmwOKCDhO8S89_XeEBERIx-r2OJPoUkpxGDrs&exp=1775029837&osig=AAAAAAAAAAAAAAAAAAAAANwXbz3lqkYUOroR_ARxAMJ4_BCfnekHQkeQzIo7-Ng8&signer=media-rpc&x-canva-quality=micro_thumbnail';
 
   // --- Header ---
   // Background rectangle for header
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, 210, 40, 'F');
 
+  // Logo (using the extracted Canva Michi logo)
+  try {
+    doc.addImage(logoUrl, 'PNG', 15, 8, 24, 24);
+  } catch (e) {
+    // Fallback if image fails
+    doc.setFillColor(139, 92, 246);
+    doc.rect(15, 8, 24, 24, 'F');
+  }
+
   // Business Name
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('TODO PARA GORRA', 15, 20);
+  doc.setFontSize(20);
+  doc.text('TODO PARA GORRA', 45, 20);
   
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('IMPORTACIONES DE MAQUINARIA Y ACCESORIOS', 15, 28);
+  doc.text('IMPORTACIONES DE MAQUINARIA Y ACCESORIOS INDUSTRIALES', 45, 28);
 
   // Proforma Info
   doc.setFontSize(12);

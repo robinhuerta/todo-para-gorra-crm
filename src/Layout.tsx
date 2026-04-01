@@ -4,13 +4,12 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   Users, 
-  LogOut, 
-  Menu, 
+  LogOut,
+  Menu,
   X, 
   Package, 
   FileText, 
   ShoppingCart, 
-  ChevronRight,
   Bell,
   Search,
   Zap,
@@ -47,31 +46,37 @@ const Layout: React.FC = () => {
 
   return (
     <div className="main-layout" style={{ 
-      gridTemplateColumns: isSidebarOpen ? 'var(--sidebar-width) 1fr' : '80px 1fr',
-      transition: 'grid-template-columns 0.3s ease'
+      gridTemplateColumns: isSidebarOpen ? 'var(--sidebar-width) 1fr' : '100px 1fr',
+      transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      minHeight: '100vh',
+      background: 'var(--bg-dark)'
     }}>
       {/* Sidebar */}
-      <aside className="sidebar glass" style={{ position: 'sticky', top: 0, height: '100vh' }}>
-        <div className="flex items-center justify-between mb-12">
-          {isSidebarOpen ? (
+      <aside className="sidebar glass border-r border-white/5" style={{ 
+        position: 'sticky', 
+        top: 0, 
+        height: '100vh',
+        padding: '2rem 1.5rem',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <div className="flex items-center gap-4 mb-12 px-2">
+          <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
+            <Zap className="text-white" size={24} />
+          </div>
+          {isSidebarOpen && (
             <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-3"
+              initial={{ opacity: 0, x: -10 }} 
+              animate={{ opacity: 1, x: 0 }}
+              className="flex flex-col"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/20">
-                <Zap className="text-white" size={24} />
-              </div>
-              <h1 className="text-xl font-bold font-outfit" style={{ margin: 0 }}>GORRA <span className="text-gradient">CRM</span></h1>
+              <h1 className="text-xl font-bold font-outfit leading-none">GORRA</h1>
+              <span className="text-xs font-bold text-violet-400 mt-1 uppercase tracking-tighter">Industrial CRM</span>
             </motion.div>
-          ) : (
-            <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto shadow-lg shadow-violet-500/20">
-              <Zap className="text-white" size={24} />
-            </div>
           )}
         </div>
 
-        <nav className="flex-1 flex flex-col gap-2">
+        <nav className="flex-1 flex flex-col gap-3">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -80,82 +85,72 @@ const Layout: React.FC = () => {
               <Link
                 key={item.id}
                 to={item.path}
-                className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-200 ${
+                className={`flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 ${
                   isActive 
-                    ? 'bg-violet-600/20 text-violet-400 border border-violet-500/30 shadow-lg shadow-violet-500/5' 
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                    ? 'bg-violet-600/20 text-violet-400 border border-violet-500/30' 
+                    : 'text-slate-400 hover:bg-slate-800/40 hover:text-white'
                 }`}
-                title={item.label}
               >
-                <Icon size={22} className={isActive ? 'text-violet-400' : 'text-inherit'} />
-                {isSidebarOpen && (
-                  <span className="font-medium whitespace-nowrap">{item.label}</span>
-                )}
-                {isSidebarOpen && isActive && (
-                  <motion.div layoutId="active" className="ml-auto">
-                    <ChevronRight size={14} className="text-violet-400" />
-                  </motion.div>
-                )}
+                <Icon size={22} className="shrink-0" />
+                {isSidebarOpen && <span className="font-bold text-sm">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-slate-800/50">
+        <div className="mt-auto pt-8 flex flex-col gap-4">
           <button 
-            className="flex items-center gap-4 p-3 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all w-full group"
+            className="flex items-center gap-4 p-4 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-2xl transition-all w-full group"
             onClick={handleLogout}
           >
-            <LogOut size={22} className="group-hover:rotate-12 transition-transform" />
-            {isSidebarOpen && <span className="font-bold">Cerrar Sesión</span>}
+            <LogOut size={22} className="shrink-0 group-hover:rotate-12 transition-transform" />
+            {isSidebarOpen && <span className="font-bold text-sm">Cerrar Sesión</span>}
           </button>
           
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="mt-4 flex items-center justify-center w-full p-2 text-slate-500 hover:text-slate-300 transition-all"
+            className="flex items-center justify-center p-3 text-slate-500 hover:text-slate-200 transition-all bg-slate-900/50 rounded-xl"
           >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="content-area">
+      <main className="content-area p-8 overflow-y-auto">
         {/* Topbar */}
-        <div className="topbar glass rounded-2xl mb-8 border border-white/5">
-          <div className="flex items-center gap-4 flex-1">
-            <h2 className="hidden md:block text-sm font-bold text-slate-500 uppercase tracking-widest">{activePageLabel}</h2>
-            <div className="h-4 w-px bg-slate-800 hidden md:block mx-2"></div>
-            <div className="relative flex-1 max-w-sm">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        <div className="topbar glass rounded-3xl p-6 mb-10 border border-white/5 flex items-center justify-between shadow-2xl shadow-black/20">
+          <div className="flex items-center gap-6">
+            <h2 className="hidden md:block text-xs font-black text-slate-500 uppercase tracking-[0.2em]">{activePageLabel}</h2>
+            <div className="h-6 w-px bg-slate-800 hidden md:block"></div>
+            <div className="relative w-64 lg:w-96">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
                 type="text" 
-                placeholder="Buscar..." 
-                className="w-full pl-10 bg-slate-900/40 border-slate-800 focus:border-violet-500/50 text-sm h-10"
+                placeholder="Buscar datos..." 
+                className="w-full pl-12 bg-slate-900/40 border-slate-800 focus:border-violet-500/50 h-11 rounded-xl text-xs"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="hidden lg:flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live Sync
+            <div className="hidden lg:flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-900/50 px-3 py-1.5 rounded-full border border-white/5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+              LIVE CONNECTED
             </div>
 
-            <button className="relative text-slate-400 hover:text-white transition-all p-2 bg-slate-900/50 rounded-lg border border-slate-800/50">
+            <button className="relative text-slate-400 hover:text-white transition-all p-2.5 bg-slate-900/50 rounded-xl border border-white/5">
               <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-violet-500 border-2 border-slate-950 rounded-full"></span>
+              <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-violet-500 border-2 border-slate-950 rounded-full"></span>
             </button>
             
-            <div className="h-8 w-px bg-slate-800"></div>
-            
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4 pl-2 border-l border-slate-800">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold uppercase tracking-tight text-white">RH</p>
-                <p className="text-[10px] text-slate-500 font-medium lowercase italic">{user?.email}</p>
+                <p className="text-[10px] font-black uppercase text-white tracking-widest">{user?.email?.split('@')[0]}</p>
+                <p className="text-[9px] text-slate-500 font-bold lowercase italic leading-none">{user?.email}</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 p-[1px] shadow-lg shadow-violet-500/10">
-                <div className="w-full h-full rounded-[11px] bg-slate-950 flex items-center justify-center font-bold text-xs">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 p-[1px]">
+                <div className="w-full h-full rounded-[15px] bg-slate-950 flex items-center justify-center font-black text-sm">
                   {user?.email?.charAt(0).toUpperCase()}
                 </div>
               </div>
