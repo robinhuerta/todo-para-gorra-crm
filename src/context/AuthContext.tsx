@@ -8,7 +8,7 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getDocs, updateDoc, collection, query, where, limit, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 export type UserRole = 'admin' | 'vendedor';
@@ -24,8 +24,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser]   = useState<User | null>(null);
-  const [role, setRole]   = useState<UserRole | null>(null);
+  const [user,    setUser]    = useState<User | null>(null);
+  const [role,    setRole]    = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,17 +35,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUser) {
         const userRef = doc(db, 'users', currentUser.uid);
         const snap    = await getDoc(userRef);
+
         if (snap.exists()) {
-          setRole((snap.data().role as UserRole) ?? 'vendedor');
+          const existingRole = (snap.data().role as UserRole) ?? 'vendedor';
+
+          // If this user is vendedor, check if there's ANY admin in the system.
+          // If no admin exists yet, promote this user to admin (first-run bootstrap).
+          if (existingRole === 'vendedor') {
+            const adminSnap = await getDocs(
+              query(collection(db, 'users'), where('role', '==', 'admin'), limit(1))
+            );
+            if (adminSnap.empty) {
+              await updateDoc(userRef, { role: 'admin' });
+              setRole('admin');
+            } else {
+              setRole('vendedor');
+            }
+          } else {
+            setRole(existingRole);
+          }
         } else {
-          // First login — create user doc with 'vendedor' role by default
+          // First login ever for this user — check if any admin exists
+          const adminSnap = await getDocs(
+            query(collection(db, 'users'), where('role', '==', 'admin'), limit(1))
+          );
+          const assignedRole: UserRole = adminSnap.empty ? 'admin' : 'vendedor';
+
           await setDoc(userRef, {
             uid:       currentUser.uid,
             email:     currentUser.email,
-            role:      'vendedor',
+            role:      assignedRole,
             createdAt: serverTimestamp(),
           });
-          setRole('vendedor');
+          setRole(assignedRole);
         }
       } else {
         setRole(null);
