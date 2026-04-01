@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
+import NotificationBell from './components/NotificationBell';
 import {
   BarChart3,
   Users,
@@ -11,7 +12,6 @@ import {
   Package,
   FileText,
   ShoppingCart,
-  Bell,
   Search,
   Info,
   Sun,
@@ -242,21 +242,7 @@ const Layout: React.FC = () => {
             </button>
 
             {/* Notifications */}
-            <button style={{
-              position: 'relative', padding: 6,
-              background: 'transparent',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: 'var(--radius-sm)',
-              color: 'hsl(var(--text-secondary))',
-              display: 'flex', alignItems: 'center',
-            }}>
-              <Bell size={15} />
-              <span style={{
-                position: 'absolute', top: 5, right: 5,
-                width: 6, height: 6, borderRadius: '50%',
-                background: 'hsl(var(--primary))',
-              }} />
-            </button>
+            <NotificationBell />
 
             {/* User avatar */}
             <div style={{
