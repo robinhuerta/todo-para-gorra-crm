@@ -1,41 +1,41 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-:root {
-  /* HSL Colors - Industrial Premium */
-  --primary: 250 80% 64%; /* Vibrant Violet */
-  --primary-hover: 250 80% 50%;
-  --secondary: 215 25% 15%; /* Deep Slate */
-  --accent: 190 90% 50%; /* Electric Cyan */
-  
-  /* Backgrounds */
-  --bg-main: 220 15% 8%;
-  --bg-card: 220 15% 12%;
-  --bg-sidebar: 220 15% 10%;
-  
-  /* Text */
-  --text-primary: 210 20% 98%;
-  --text-secondary: 215 15% 65%;
-  --text-muted: 215 15% 45%;
-  
-  /* Borders & Overlays */
-  --border: 215 15% 20%;
-  --glass: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  
-  /* Layout */
-  --sidebar-width: 280px;
-  --topbar-height: 70px;
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-  
-  /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.3);
+/* ─── CREATIO CORPORATE THEME ─────────────────────────────────── */
+
+:root[data-theme='light'] {
+  --primary:        207 89% 40%;      /* #0072CC – Creatio blue */
+  --primary-hover:  207 89% 33%;
+  --bg-main:        220 20% 96%;      /* #F2F4F8 light blue-gray bg */
+  --bg-card:        0 0% 100%;        /* white cards */
+  --bg-sidebar:     0 0% 100%;        /* white sidebar */
+  --text-primary:   213 28% 18%;      /* #1E2D3D dark blue-gray */
+  --text-secondary: 213 14% 50%;      /* #6B7C93 medium gray */
+  --border:         213 18% 88%;      /* #DDEAF5 light border */
+  --accent:         207 89% 95%;      /* #E8F3FC hover tint */
 }
 
+:root[data-theme='dark'] {
+  --primary:        207 78% 56%;
+  --primary-hover:  207 78% 46%;
+  --bg-main:        220 22% 10%;
+  --bg-card:        220 22% 15%;
+  --bg-sidebar:     220 22% 12%;
+  --text-primary:   210 20% 94%;
+  --text-secondary: 215 14% 58%;
+  --border:         217 18% 24%;
+  --accent:         207 30% 22%;
+}
+
+:root {
+  --sidebar-width:  256px;
+  --topbar-height:  56px;
+  --radius-lg:      8px;
+  --radius-md:      6px;
+  --radius-sm:      4px;
+}
+
+/* ─── RESET ─────────────────────────────────────────────────────── */
 * {
   margin: 0;
   padding: 0;
@@ -50,66 +50,44 @@ body {
   color: hsl(var(--text-primary));
   overflow-x: hidden;
   line-height: 1.5;
+  font-size: 14px;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   color: hsl(var(--text-primary));
+  letter-spacing: -0.01em;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ─── SCROLLBAR ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--text-muted));
-}
 
-/* Glassmorphism utility */
-.glass {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* Transitions */
-.transition-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.transition-card:hover {
-  transform: translateY(-4px);
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Layout Classes */
+/* ─── LAYOUT ─────────────────────────────────────────────────────── */
 .main-layout {
   display: grid;
   min-height: 100vh;
-  background: #020617;
+  background: hsl(var(--bg-main));
 }
 
 .sidebar {
   background: hsl(var(--bg-sidebar));
   border-right: 1px solid hsl(var(--border));
-  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .content-area {
-  padding: 2rem;
   background: hsl(var(--bg-main));
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 .topbar {
@@ -117,31 +95,81 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 24px;
   border-bottom: 1px solid hsl(var(--border));
-  margin-bottom: 1.5rem;
+  background: hsl(var(--bg-card));
+  flex-shrink: 0;
 }
 
-/* Form Elements */
+/* ─── SIDEBAR NAV ────────────────────────────────────────────────── */
+.sidebar-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: hsl(var(--text-secondary));
+  background: transparent;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar-nav-link:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--text-primary));
+}
+
+.sidebar-nav-link.active {
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--accent));
+  border-left-color: hsl(var(--primary));
+}
+
+/* ─── CARD ───────────────────────────────────────────────────────── */
+.card {
+  background: hsl(var(--bg-card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg);
+}
+
+/* .glass kept for compatibility – flat in both themes */
+.glass {
+  background: hsl(var(--bg-card));
+  border: 1px solid hsl(var(--border));
+}
+
+/* ─── FORMS ──────────────────────────────────────────────────────── */
 input, select, textarea {
   background: hsl(var(--bg-card));
   border: 1px solid hsl(var(--border));
-  color: white;
-  padding: 0.75rem 1rem;
+  color: hsl(var(--text-primary));
+  padding: 7px 10px;
   border-radius: var(--radius-sm);
   font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
+  font-size: 13.5px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-input:focus {
+input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: hsl(var(--primary));
-  box-shadow: 0 0 0 2px hsla(var(--primary), 0.2);
+  box-shadow: 0 0 0 3px hsla(var(--primary), 0.15);
 }
 
+input::placeholder, textarea::placeholder {
+  color: hsl(var(--text-secondary));
+  opacity: 0.7;
+}
+
+/* ─── BUTTONS ────────────────────────────────────────────────────── */
 button {
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   border: none;
@@ -151,50 +179,72 @@ button {
 .btn-primary {
   background: hsl(var(--primary));
   color: white;
-  padding: 0.75rem 1.5rem;
+  padding: 7px 18px;
+  font-size: 13.5px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-primary:hover {
   background: hsl(var(--primary-hover));
-  transform: translateY(-1px);
 }
 
 .btn-outline {
   background: transparent;
-  border: 1px solid hsla(var(--text-muted), 0.3);
+  border: 1px solid hsl(var(--border));
   color: hsl(var(--text-secondary));
-  padding: 0.75rem 1.5rem;
+  padding: 7px 18px;
+  font-size: 13.5px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-outline:hover {
   border-color: hsl(var(--primary));
-  color: white;
+  color: hsl(var(--primary));
 }
 
-/* Typography Helpers */
+/* ─── TYPOGRAPHY HELPERS ─────────────────────────────────────────── */
 .text-gradient {
-  background: linear-gradient(135deg, #8b5cf6, #22d3ee);
+  background: linear-gradient(135deg, hsl(var(--primary)), #38bdf8);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-h1, h2, h3, h4 {
-  letter-spacing: -0.02em;
+/* ─── UTILITIES ──────────────────────────────────────────────────── */
+.transition-card {
+  transition: all 0.2s ease;
 }
 
-/* Custom Utilities */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: hsl(var(--border));
   border-radius: 10px;
 }
 
-/* Responsive */
+/* ─── KANBAN COLUMN ──────────────────────────────────────────────── */
+.kanban-col {
+  background: hsl(var(--bg-main));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg);
+  min-width: 260px;
+  flex: 1;
+}
+
+.kanban-card {
+  background: hsl(var(--bg-card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.kanban-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: hsl(var(--primary));
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
-  :root {
-    --sidebar-width: 80px;
-  }
+  :root { --sidebar-width: 64px; }
 }

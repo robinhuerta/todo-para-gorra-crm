@@ -1,219 +1,231 @@
 
 import React from 'react';
-import { 
-  TrendingUp, 
-  Users, 
-  Package, 
-  FileText, 
-  ArrowUpRight, 
+import {
+  TrendingUp,
+  Users,
+  Package,
+  FileText,
+  ArrowUpRight,
   ArrowDownRight,
-  Truck,
-  Globe
+  Plus,
+  MoreVertical,
+  Activity,
+  Clock,
+  CheckCircle2,
+  Calendar,
 } from 'lucide-react';
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area 
-} from 'recharts';
 import { motion } from 'framer-motion';
 
-const data = [
-  { name: 'Ene', ventas: 4000, proformas: 2400 },
-  { name: 'Feb', ventas: 3000, proformas: 1398 },
-  { name: 'Mar', ventas: 5000, proformas: 9800 },
-  { name: 'Abr', ventas: 2780, proformas: 3908 },
-  { name: 'May', ventas: 1890, proformas: 4800 },
-  { name: 'Jun', ventas: 2390, proformas: 3800 },
-];
-
-const StatCard = ({ title, value, change, icon: Icon, color }: any) => (
-  <motion.div 
-    whileHover={{ y: -5 }}
-    className="glass p-6 rounded-2xl border border-slate-800/50 flex flex-col gap-4 relative overflow-hidden"
-  >
-    <div className={`absolute top-0 right-0 p-8 opacity-5 rounded-full`} style={{ background: color }}></div>
-    
-    <div className="flex items-center justify-between">
-      <div className="p-3 rounded-xl bg-slate-800/50" style={{ color }}>
-        <Icon size={24} />
-      </div>
-      <div className={`flex items-center gap-1 text-sm ${change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-        {change >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-        {Math.abs(change)}%
-      </div>
-    </div>
-    
-    <div>
-      <p className="text-slate-500 text-sm font-medium">{title}</p>
-      <h3 className="text-2xl font-bold font-outfit mt-1">{value}</h3>
-    </div>
-  </motion.div>
-);
-
 const Dashboard: React.FC = () => {
+  const stats = [
+    { label: 'Ventas Totales',    value: '$84,200',  change: '+12.5%', icon: TrendingUp, color: '#0072CC' },
+    { label: 'Clientes Activos',  value: '1,240',    change: '+8.2%',  icon: Users,      color: '#0ea5e9' },
+    { label: 'Maquinaria Stock',  value: '48 Unid.', change: '-2.4%',  icon: Package,    color: '#f59e0b' },
+    { label: 'Proformas Mes',     value: '156',      change: '+18.4%', icon: FileText,   color: '#10b981' },
+  ];
+
+  const activity = [
+    { user: 'Juan Pérez',    action: 'generó nueva proforma',   time: 'hace 2h',  type: 'doc' },
+    { user: 'Textiles Lima', action: 'solicitó catálogo',        time: 'hace 5h',  type: 'client' },
+    { user: 'Gorra Urban',   action: 'proforma aceptada',        time: 'ayer',     type: 'success' },
+  ];
+
+  const funnelSteps = [
+    { step: 'Prospecto',    done: true,  active: true  },
+    { step: 'Cotizado',     done: true,  active: true  },
+    { step: 'Negociación',  done: false, active: true  },
+    { step: 'Cerrado',      done: false, active: false },
+  ];
+
   return (
-    <div className="space-y-8 pb-12">
-      {/* Welcome Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 32 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 className="text-3xl font-bold font-outfit">Panel de <span className="text-gradient">Control</span></h2>
-          <p className="text-slate-500 mt-1">Resumen general de importaciones y ventas de TODO PARA GORRA.</p>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
+            Business Performance
+          </h2>
+          <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 4 }}>
+            Visión estratégica de importaciones y ventas industriales.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="btn-outline flex items-center gap-2">
-            <Globe size={18} />
-            Estatus Importación
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Calendar size={14} /> Exportar Reporte
           </button>
-          <button className="btn-primary flex items-center gap-2 shadow-lg shadow-violet-500/20">
-            <Plus size={18} />
-            Nueva Proforma
+          <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Plus size={15} /> Nueva Operación
           </button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Ventas Totales" value="$84,200" change={12.5} icon={TrendingUp} color="#a78bfa" />
-        <StatCard title="Clientes Activos" value="1,240" change={8.2} icon={Users} color="#22d3ee" />
-        <StatCard title="Maquinaria en Stock" value="48 Unid." change={-2.4} icon={Package} color="#f59e0b" />
-        <StatCard title="Proformas del Mes" value="156" change={18.4} icon={FileText} color="#10b981" />
-      </div>
-
-      {/* Main Charts area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 glass p-8 rounded-3xl border border-slate-800/50">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h3 className="text-xl font-bold">Rendimiento Comercial</h3>
-              <p className="text-sm text-slate-500">Comparativa de ventas reales vs proformas generadas.</p>
+      {/* KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+        {stats.map((stat, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.07 }}
+            className="card"
+            style={{ padding: '20px 22px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: `${stat.color}18`,
+                color: stat.color,
+              }}>
+                <stat.icon size={20} />
+              </div>
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 3,
+                fontSize: 11, fontWeight: 600,
+                padding: '3px 8px', borderRadius: 20,
+                background: stat.change.startsWith('+') ? '#ECFDF5' : '#FFF1F2',
+                color:      stat.change.startsWith('+') ? '#059669' : '#E11D48',
+              }}>
+                {stat.change.startsWith('+') ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                {stat.change}
+              </span>
             </div>
-            <select className="bg-slate-900 border-slate-800 text-xs py-1 px-2">
-              <option>Últimos 6 meses</option>
-              <option>Este año</option>
-            </select>
-          </div>
-          
-          <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Area type="monotone" dataKey="ventas" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                <Area type="monotone" dataKey="proformas" stroke="#22d3ee" strokeWidth={3} fillOpacity={0} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+              {stat.label}
+            </p>
+            <h3 style={{ fontSize: 26, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>{stat.value}</h3>
+          </motion.div>
+        ))}
+      </div>
 
-        <div className="glass p-8 rounded-3xl border border-slate-800/50 flex flex-col">
-          <h3 className="text-xl font-bold mb-6">Maquinaria Destacada</h3>
-          <div className="space-y-6 flex-1">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="group cursor-pointer flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-800/50 transition-all border border-transparent hover:border-slate-700/50">
-                <div className="w-16 h-16 bg-slate-900 rounded-xl overflow-hidden border border-slate-800 p-2 flex items-center justify-center">
-                   <Truck className="text-slate-600 group-hover:text-amber-500 transition-colors" size={32} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold truncate">Máquina Bordadora X-10 Pro</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">Stock: 4 unidades</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-xs px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded-md border border-amber-500/20">Importado</span>
-                    <span className="text-sm font-bold text-violet-400">$12,400</span>
+      {/* Main analysis */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+
+        {/* Funnel */}
+        <div className="card" style={{ padding: '24px 28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 8,
+                background: '#E8F3FC', color: '#0072CC',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Activity size={18} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: 15, fontWeight: 600 }}>Embudo de Operaciones</h4>
+                <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>Estado real de las proformas en curso</p>
+              </div>
+            </div>
+            <button style={{ padding: 6, background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: 6, color: 'hsl(var(--text-secondary))', display: 'flex' }}>
+              <MoreVertical size={16} />
+            </button>
+          </div>
+
+          {/* Steps */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 0' }}>
+            {funnelSteps.map((item, i) => (
+              <React.Fragment key={i}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, position: 'relative' }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    border: `2px solid ${item.done ? '#0072CC' : item.active ? '#0072CC' : 'hsl(var(--border))'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: item.done ? '#0072CC' : 'hsl(var(--bg-card))',
+                    color: item.done ? '#fff' : item.active ? '#0072CC' : 'hsl(var(--text-secondary))',
+                    fontSize: 13, fontWeight: 600,
+                  }}>
+                    {item.done ? <CheckCircle2 size={17} /> : i + 1}
                   </div>
+                  <span style={{
+                    fontSize: 11, fontWeight: 500,
+                    color: item.active ? '#0072CC' : 'hsl(var(--text-secondary))',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {item.step}
+                  </span>
                 </div>
-                <button className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-500 hover:text-white transition-all">
-                  <ArrowUpRight size={18} />
-                </button>
+                {i < funnelSteps.length - 1 && (
+                  <div style={{
+                    flex: 1, height: 2, margin: '0 12px', marginBottom: 24,
+                    background: item.done ? '#0072CC' : 'hsl(var(--border))',
+                    borderRadius: 2,
+                  }} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Metrics */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20,
+            marginTop: 28, paddingTop: 20,
+            borderTop: '1px solid hsl(var(--border))',
+          }}>
+            {[
+              { label: 'Conversión de Leads', value: '72%', color: '#0072CC' },
+              { label: 'Meta Mensual',         value: '84%', color: '#0ea5e9' },
+            ].map((row, i) => (
+              <div key={i}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-secondary))', marginBottom: 6 }}>
+                  <span>{row.label}</span>
+                  <span style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>{row.value}</span>
+                </div>
+                <div style={{ height: 6, background: 'hsl(var(--border))', borderRadius: 4, overflow: 'hidden' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: row.value }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
+                    style={{ height: '100%', background: row.color, borderRadius: 4 }}
+                  />
+                </div>
               </div>
             ))}
           </div>
-          <button className="mt-8 w-full btn-outline flex items-center justify-center gap-2">
-            <Package size={18} />
-            Ver Inventario Completo
+        </div>
+
+        {/* Activity feed */}
+        <div className="card" style={{ padding: '24px 22px' }}>
+          <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Clock size={16} style={{ color: 'hsl(var(--text-secondary))' }} /> Actividad Reciente
+          </h4>
+
+          <div style={{ position: 'relative' }}>
+            <div style={{
+              position: 'absolute', left: 9, top: 8, bottom: 8, width: 1,
+              background: 'hsl(var(--border))',
+            }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {activity.map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
+                    zIndex: 1, border: '2px solid hsl(var(--bg-card))',
+                    background: item.type === 'success' ? '#10b981' : item.type === 'doc' ? '#0072CC' : '#0ea5e9',
+                  }} />
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-primary))' }}>{item.user}</p>
+                    <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{item.action}</p>
+                    <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 4, opacity: 0.7 }}>{item.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            className="btn-outline"
+            style={{ width: '100%', marginTop: 24, fontSize: 12, textAlign: 'center' }}
+          >
+            Ver toda la actividad
           </button>
         </div>
-      </div>
 
-      {/* Recent Activity Table */}
-      <div className="glass rounded-3xl border border-slate-800/50 overflow-hidden">
-        <div className="p-8 border-bottom border-slate-800/50 flex items-center justify-between">
-          <h3 className="text-xl font-bold">Últimas Proformas</h3>
-          <button className="text-violet-400 text-sm font-medium hover:underline">Ver todas</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-900/50 text-slate-500 text-xs uppercase tracking-wider">
-                <th className="px-8 py-4 font-semibold">Cliente</th>
-                <th className="px-8 py-4 font-semibold">Nro Proforma</th>
-                <th className="px-8 py-4 font-semibold">Monto</th>
-                <th className="px-8 py-4 font-semibold">Estado</th>
-                <th className="px-8 py-4 font-semibold">Fecha</th>
-                <th className="px-8 py-4 font-semibold text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {[
-                { name: 'Juan Pérez', id: 'PF-2024-001', amount: '$4,200', status: 'Enviada', date: 'Hace 2h' },
-                { name: 'Textiles Lima SAC', id: 'PF-2024-002', amount: '$15,800', status: 'Pendiente', date: 'Hace 5h' },
-                { name: 'Gorra Urban S.A.', id: 'PF-2024-003', amount: '$1,400', status: 'Aceptada', date: 'Ayer' },
-              ].map((row, i) => (
-                <tr key={i} className="hover:bg-slate-800/30 transition-all text-sm group">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold">
-                        {row.name.charAt(0)}
-                      </div>
-                      <span className="font-medium">{row.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-slate-400 font-mono">{row.id}</td>
-                  <td className="px-8 py-5 font-bold">{row.amount}</td>
-                  <td className="px-8 py-5">
-                    <span className={`px-3 py-1 rounded-full text-xs border ${
-                      row.status === 'Aceptada' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                      row.status === 'Enviada' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                      'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                    }`}>
-                      {row.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5 text-slate-500">{row.date}</td>
-                  <td className="px-8 py-5 text-right">
-                    <button className="p-2 opacity-0 group-hover:opacity-100 transition-all text-slate-400 hover:text-white">
-                      <FileText size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
 };
-
-const Plus = ({ size, className }: any) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);
 
 export default Dashboard;
