@@ -16,15 +16,50 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { generateProformaPDF } from '../utils/ProformaPDF';
+
 const Proformas: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const proformas = [
-    { id: 'PF-2024-001', client: 'Juan Pérez', total: '$4,200', status: 'Enviada', date: '2024-04-01', items: 3 },
-    { id: 'PF-2024-002', client: 'Textiles Lima SAC', total: '$15,800', status: 'Pendiente', date: '2024-03-31', items: 12 },
-    { id: 'PF-2024-003', client: 'Gorra Urban S.A.', total: '$1,400', status: 'Aceptada', date: '2024-03-28', items: 2 },
-    { id: 'PF-2024-004', client: 'Empresa ABC', total: '$8,500', status: 'Vencida', date: '2024-03-15', items: 5 },
+    { 
+      id: 'PF-2024-001', 
+      client: 'Juan Pérez', 
+      company: 'Textiles del Sur',
+      total: 4200, 
+      status: 'Enviada', 
+      date: '2024-04-01', 
+      items: [
+        { name: 'Máquina Bordadora X-10', description: '12 cabezales, alta velocidad', quantity: 1, price: 3800 },
+        { name: 'Repuestos Agujas x100', description: 'Acero inoxidable', quantity: 4, price: 100 }
+      ] 
+    },
+    { 
+      id: 'PF-2024-002', 
+      client: 'Textiles Lima SAC', 
+      company: 'Lima Textiles',
+      total: 15800, 
+      status: 'Pendiente', 
+      date: '2024-03-31', 
+      items: [
+        { name: 'Prensa de Calor Neumática', description: 'Industrial 40x60', quantity: 2, price: 7900 }
+      ] 
+    },
   ];
+
+  const handleDownload = (pf: any) => {
+    generateProformaPDF({
+      id: pf.id,
+      clientName: pf.client,
+      clientCompany: pf.company,
+      date: pf.date,
+      expiryDate: '2024-04-15',
+      items: pf.items,
+      subtotal: pf.total * 0.82,
+      tax: pf.total * 0.18,
+      total: pf.total
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -108,7 +143,7 @@ const Proformas: React.FC = () => {
                   <td className="px-8 py-5 text-slate-400">{pf.date}</td>
                   <td className="px-8 py-5">
                     <span className="px-2 py-1 bg-slate-800 rounded-md text-[10px] font-bold text-slate-300">
-                      {pf.items} items
+                      {pf.items.length} items
                     </span>
                   </td>
                   <td className="px-8 py-5 font-bold text-lg">{pf.total}</td>
@@ -127,7 +162,11 @@ const Proformas: React.FC = () => {
                       <button className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-all" title="Ver">
                         <Eye size={18} />
                       </button>
-                      <button className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition-all" title="Descargar PDF">
+                      <button 
+                        onClick={() => handleDownload(pf)}
+                        className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition-all" 
+                        title="Descargar PDF"
+                      >
                         <Download size={18} />
                       </button>
                       <button className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-all" title="Enviar Email">
