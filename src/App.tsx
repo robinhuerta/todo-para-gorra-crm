@@ -1,6 +1,7 @@
 
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './Layout';
 import Login from './pages/Login';
@@ -10,8 +11,17 @@ import Inventory from './pages/Inventory';
 import Proformas from './pages/Proformas';
 import Store from './pages/Store';
 import Documents from './pages/Documents';
+import Users from './pages/Users';
 
 import { ThemeProvider } from './context/ThemeContext';
+
+// Redirects non-admins away from admin-only routes
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { role, loading } = useAuth();
+  if (loading) return null;
+  if (role !== 'admin') return <Navigate to="/store" replace />;
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -20,18 +30,22 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-            
+
             <Route path="/" element={
               <PrivateRoute>
                 <Layout />
               </PrivateRoute>
             }>
-              <Route index element={<Dashboard />} />
+              {/* Admin-only routes */}
+              <Route index element={<AdminRoute><Dashboard /></AdminRoute>} />
+              <Route path="inventory" element={<AdminRoute><Inventory /></AdminRoute>} />
+              <Route path="proformas" element={<AdminRoute><Proformas /></AdminRoute>} />
+              <Route path="documents" element={<AdminRoute><Documents /></AdminRoute>} />
+              <Route path="users"     element={<AdminRoute><Users /></AdminRoute>} />
+
+              {/* Shared routes (admin + vendedor) */}
               <Route path="clients" element={<Clients />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="proformas" element={<Proformas />} />
-              <Route path="store" element={<Store />} />
-              <Route path="documents" element={<Documents />} />
+              <Route path="store"   element={<Store />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

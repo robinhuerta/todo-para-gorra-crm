@@ -18,23 +18,34 @@ import {
   Moon,
   ChevronLeft,
   ChevronRight,
+  UserCog,
 } from 'lucide-react';
 
-const menuItems = [
-  { id: 'dashboard', label: 'Dashboard',       icon: BarChart3,    path: '/' },
-  { id: 'clients',   label: 'Clientes',         icon: Users,        path: '/clients' },
-  { id: 'inventory', label: 'Inventario',       icon: Package,      path: '/inventory' },
-  { id: 'proformas', label: 'Proformas',        icon: FileText,     path: '/proformas' },
-  { id: 'store',     label: 'Tienda Interna',   icon: ShoppingCart, path: '/store' },
-  { id: 'docs',      label: 'Documentos',       icon: Info,         path: '/documents' },
+const ALL_MENU_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard',       icon: BarChart3,    path: '/',          roles: ['admin'] },
+  { id: 'clients',   label: 'Clientes',         icon: Users,        path: '/clients',   roles: ['admin', 'vendedor'] },
+  { id: 'inventory', label: 'Inventario',       icon: Package,      path: '/inventory', roles: ['admin'] },
+  { id: 'proformas', label: 'Proformas',        icon: FileText,     path: '/proformas', roles: ['admin'] },
+  { id: 'store',     label: 'Tienda Interna',   icon: ShoppingCart, path: '/store',     roles: ['admin', 'vendedor'] },
+  { id: 'docs',      label: 'Documentos',       icon: Info,         path: '/documents', roles: ['admin'] },
+  { id: 'users',     label: 'Usuarios',         icon: UserCog,      path: '/users',     roles: ['admin'] },
 ];
+
+const ROLE_LABELS: Record<string, string> = {
+  admin:    'Administrador',
+  vendedor: 'Vendedor',
+};
 
 const Layout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout, user, role } = useAuth();
   const { theme, toggleTheme } = useTheme();
+
+  const menuItems = ALL_MENU_ITEMS.filter(
+    item => !role || item.roles.includes(role)
+  );
 
   const handleLogout = async () => {
     try { await logout(); navigate('/login'); }
@@ -124,7 +135,7 @@ const Layout: React.FC = () => {
                   {user?.email?.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{
                   fontSize: 13, fontWeight: 600,
                   color: 'hsl(var(--text-primary))',
@@ -132,12 +143,17 @@ const Layout: React.FC = () => {
                 }}>
                   {user?.email?.split('@')[0]}
                 </p>
-                <p style={{
-                  fontSize: 11, color: 'hsl(var(--text-secondary))',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                <span style={{
+                  display: 'inline-block',
+                  fontSize: 10, fontWeight: 600,
+                  padding: '1px 6px',
+                  borderRadius: 99,
+                  background: role === 'admin' ? 'hsl(207 89% 92%)' : 'hsl(142 70% 90%)',
+                  color: role === 'admin' ? 'hsl(207 89% 35%)' : 'hsl(142 70% 30%)',
+                  marginTop: 2,
                 }}>
-                  {user?.email}
-                </p>
+                  {ROLE_LABELS[role ?? 'vendedor'] ?? role}
+                </span>
               </div>
             </div>
           )}
