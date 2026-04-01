@@ -10,7 +10,6 @@ import {
   Edit, 
   Trash2
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 import { useFirestore } from '../hooks/useFirestore';
 
@@ -26,7 +25,7 @@ interface InventoryItem {
 
 const Inventory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'machinery' | 'parts' | 'caps'>('machinery');
-  const { data: items, loading, add } = useFirestore<InventoryItem>('inventory');
+  const { data: items } = useFirestore<InventoryItem>('inventory');
 
   const categories = [
     { id: 'machinery', label: 'Maquinaria', icon: Truck, count: items.filter(i => i.category === 'machinery').length, color: '#f59e0b' },

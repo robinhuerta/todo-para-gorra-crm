@@ -27,7 +27,7 @@ interface Client {
 
 const Clients: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { data: clients, loading, add, remove } = useFirestore<Client>('clients');
+  const { data: clients, loading, add } = useFirestore<Client>('clients');
 
   const handleAddClient = async () => {
     // Simplified for demonstration, usually a modal/form would be here

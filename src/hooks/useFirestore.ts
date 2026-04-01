@@ -8,8 +8,7 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  QueryConstraint,
-  DocumentData,
+  type DocumentData,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -24,7 +23,7 @@ export function useFirestore<T extends DocumentData>(collectionPath: string) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const result: T[] = [];
       snapshot.forEach((doc) => {
-        result.push({ id: doc.id, ...doc.data() } as T);
+        result.push({ id: doc.id, ...doc.data() } as unknown as T);
       });
       setData(result);
       setLoading(false);

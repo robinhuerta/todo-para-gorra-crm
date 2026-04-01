@@ -4,7 +4,6 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   Users, 
-  Settings, 
   LogOut, 
   Menu, 
   X, 

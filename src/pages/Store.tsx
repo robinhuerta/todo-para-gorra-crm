@@ -6,13 +6,12 @@ import {
   Filter, 
   Star, 
   Share2, 
-  ArrowRight,
-  Heart
+  ArrowRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Store: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const searchTerm = '';
   const [cartCount, setCartCount] = useState(0);
 
   const products = [
@@ -93,7 +92,7 @@ const Store: React.FC = () => {
                 )}
               </div>
               <button className="absolute top-4 right-4 w-10 h-10 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/10 hover:bg-violet-600 transition-all duration-300">
-                <Heart size={18} />
+                <Star size={18} />
               </button>
               
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60"></div>

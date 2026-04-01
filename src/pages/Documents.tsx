@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   FileText, 
   Search, 
@@ -14,10 +14,9 @@ import {
   Lock,
   Clock
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const Documents: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const searchTerm = '';
 
   const documents = [
     { id: 1, title: 'Manual Usuario Bordadora X-10', type: 'Manual', size: '2.4 MB', date: '2024-03-25', status: 'Verificado' },
