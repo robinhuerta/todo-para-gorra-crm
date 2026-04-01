@@ -12,13 +12,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('crm-theme');
+    const saved = localStorage.getItem('crm-theme-v2');
     return (saved as Theme) || 'light';
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('crm-theme', theme);
+    localStorage.setItem('crm-theme-v2', theme);
   }, [theme]);
 
   const toggleTheme = () => {
