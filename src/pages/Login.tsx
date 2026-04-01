@@ -1,15 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Zap, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,8 +27,10 @@ const Login: React.FC = () => {
     
     try {
       await login(email, password);
+      // Success will trigger the useEffect above
     } catch (err: any) {
-      setError('Credenciales incorrectas. Por favor, verifica tu correo y contraseña.');
+      console.error('Login error:', err);
+      setError('Credenciales incorrectas o cuenta no configurada.');
     } finally {
       setIsLoading(false);
     }
