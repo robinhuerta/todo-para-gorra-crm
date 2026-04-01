@@ -150,7 +150,6 @@ const Store: React.FC = () => {
     setConfirming(true);
     try {
       await addOrder({
-        id:            `ORD-${Date.now().toString().slice(-6)}`,
         items:         cart.map(i => ({ name: i.product.name, price: i.product.price, quantity: i.quantity, unit: i.product.unit })),
         subtotal,
         tax,
@@ -159,7 +158,7 @@ const Store: React.FC = () => {
         clientName:    clientName || 'Cliente General',
         date:          new Date().toISOString().split('T')[0],
         status:        'Completado',
-      });
+      } as Omit<OrderRecord, 'id'>);
       setCart([]);
       setClientName('');
       setPayMethod('cash');
