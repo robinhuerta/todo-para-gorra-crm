@@ -19,10 +19,12 @@ import { useFirestore } from '../hooks/useFirestore';
 interface InventoryItem {
   id: string;
   name: string;
-  category: 'machinery' | 'parts' | 'caps';
+  category: 'machinery' | 'parts' | 'caps' | 'supplies';
   brand: string;
-  price: string;
+  price: number;
   stock: number;
+  unit: string;
+  description: string;
   status: string;
 }
 
@@ -32,8 +34,10 @@ const EMPTY_FORM: FormData = {
   name: '',
   category: 'machinery',
   brand: '',
-  price: '',
+  price: 0,
   stock: 0,
+  unit: 'unidad',
+  description: '',
   status: 'In Stock',
 };
 
@@ -41,6 +45,7 @@ const categoryMeta = {
   machinery: { label: 'Maquinaria',  icon: Truck,    color: '#f59e0b' },
   parts:     { label: 'Repuestos',   icon: Settings, color: '#0ea5e9' },
   caps:      { label: 'Gorras Imp.', icon: Package,  color: '#0072CC' },
+  supplies:  { label: 'Insumos',     icon: Package,  color: '#10b981' },
 };
 
 /* ─── small reusable field wrapper ─── */
@@ -54,7 +59,7 @@ const Field: React.FC<{ label: string; required?: boolean; children: React.React
 );
 
 const Inventory: React.FC = () => {
-  const [activeTab, setActiveTab]   = useState<'machinery' | 'parts' | 'caps'>('machinery');
+  const [activeTab, setActiveTab]   = useState<'machinery' | 'parts' | 'caps' | 'supplies'>('machinery');
   const [searchTerm, setSearchTerm] = useState('');
   const [modalOpen, setModalOpen]   = useState(false);
   const [editItem, setEditItem]     = useState<InventoryItem | null>(null);
@@ -70,6 +75,7 @@ const Inventory: React.FC = () => {
     machinery: items.filter(i => i.category === 'machinery').length,
     parts:     items.filter(i => i.category === 'parts').length,
     caps:      items.filter(i => i.category === 'caps').length,
+    supplies:  items.filter(i => i.category === 'supplies').length,
   };
 
   const filtered = items.filter(
@@ -90,12 +96,14 @@ const Inventory: React.FC = () => {
   const openEdit = (item: InventoryItem) => {
     setEditItem(item);
     setFormData({
-      name:     item.name,
-      category: item.category,
-      brand:    item.brand,
-      price:    item.price,
-      stock:    item.stock,
-      status:   item.status,
+      name:        item.name,
+      category:    item.category,
+      brand:       item.brand,
+      price:       item.price,
+      stock:       item.stock,
+      unit:        item.unit || 'unidad',
+      description: item.description || '',
+      status:      item.status,
     });
     setFormError('');
     setModalOpen(true);
@@ -106,7 +114,7 @@ const Inventory: React.FC = () => {
   /* ── submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.brand.trim() || !formData.price.trim()) {
+    if (!formData.name.trim() || !formData.brand.trim() || formData.price <= 0) {
       setFormError('Completa todos los campos obligatorios.');
       return;
     }
@@ -274,7 +282,9 @@ const Inventory: React.FC = () => {
                       </div>
                     </td>
                     <td style={{ padding: '11px 16px', color: 'hsl(var(--text-primary))', fontWeight: 500 }}>{item.brand}</td>
-                    <td style={{ padding: '11px 16px', fontWeight: 700, color: '#059669', fontSize: 14 }}>{item.price}</td>
+                    <td style={{ padding: '11px 16px', fontWeight: 700, color: '#059669', fontSize: 14 }}>
+                      S/ {Number(item.price).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                    </td>
                     <td style={{ padding: '11px 16px' }}>
                       <div style={{ width: 90 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
@@ -355,19 +365,34 @@ const Inventory: React.FC = () => {
                   </Field>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <Field label="Categoría" required>
                     <select value={formData.category} onChange={e => set('category', e.target.value)} style={{ height: 36 }}>
                       <option value="machinery">Maquinaria</option>
                       <option value="parts">Repuestos</option>
+                      <option value="supplies">Insumos</option>
                       <option value="caps">Gorras Imp.</option>
                     </select>
                   </Field>
-                  <Field label="Precio (ej: $1,200)" required>
+                  <Field label="Unidad">
+                    <select value={formData.unit} onChange={e => set('unit', e.target.value)} style={{ height: 36 }}>
+                      <option value="unidad">Unidad</option>
+                      <option value="par">Par</option>
+                      <option value="caja">Caja</option>
+                      <option value="rollo">Rollo</option>
+                      <option value="metro">Metro</option>
+                      <option value="kg">Kg</option>
+                      <option value="docena">Docena</option>
+                    </select>
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <Field label="Precio (S/)" required>
                     <input
-                      type="text" placeholder="$0.00"
-                      value={formData.price}
-                      onChange={e => set('price', e.target.value)}
+                      type="number" min={0} step="0.01" placeholder="0.00"
+                      value={formData.price || ''}
+                      onChange={e => set('price', parseFloat(e.target.value) || 0)}
                       style={{ height: 36 }}
                     />
                   </Field>
@@ -380,6 +405,16 @@ const Inventory: React.FC = () => {
                     />
                   </Field>
                 </div>
+
+                <Field label="Descripción">
+                  <textarea
+                    placeholder="Descripción del producto, especificaciones, uso..."
+                    value={formData.description}
+                    onChange={e => set('description', e.target.value)}
+                    rows={3}
+                    style={{ resize: 'vertical', padding: '8px 12px', fontSize: 13, fontFamily: 'inherit' }}
+                  />
+                </Field>
 
                 <Field label="Estado">
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -461,16 +496,23 @@ const Inventory: React.FC = () => {
 
                 {/* Fields */}
                 {[
-                  { label: 'Precio',    value: viewItem.price },
-                  { label: 'Stock',     value: `${viewItem.stock} unidades` },
+                  { label: 'Precio',    value: `S/ ${Number(viewItem.price).toLocaleString('es-PE', { minimumFractionDigits: 2 })}` },
+                  { label: 'Stock',     value: `${viewItem.stock} ${viewItem.unit || 'unidades'}` },
                   { label: 'Estado',    value: viewItem.status },
-                  { label: 'Categoría', value: categoryMeta[viewItem.category].label },
+                  { label: 'Categoría', value: categoryMeta[viewItem.category]?.label ?? viewItem.category },
                 ].map(row => (
                   <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, color: 'hsl(var(--text-secondary))' }}>{row.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{row.value}</span>
                   </div>
                 ))}
+
+                {viewItem.description && (
+                  <div style={{ padding: '10px 12px', borderRadius: 6, background: 'hsl(var(--bg-main))', border: '1px solid hsl(var(--border))' }}>
+                    <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', fontWeight: 600, marginBottom: 4 }}>DESCRIPCIÓN</p>
+                    <p style={{ fontSize: 13, color: 'hsl(var(--text-primary))', lineHeight: 1.5 }}>{viewItem.description}</p>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                   <button className="btn-outline" style={{ flex: 1 }} onClick={() => setViewItem(null)}>Cerrar</button>

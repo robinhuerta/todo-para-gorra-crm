@@ -26,11 +26,13 @@ import { useFirestore } from '../hooks/useFirestore';
 interface Product {
   id: string;
   name: string;
-  category: 'machines' | 'parts' | 'supplies';
+  category: 'machinery' | 'parts' | 'supplies' | 'caps';
+  brand?: string;
   price: number;
   stock: number;
-  description: string;
-  unit: string;
+  description?: string;
+  unit?: string;
+  status?: string;
 }
 
 interface CartItem {
@@ -52,10 +54,11 @@ interface OrderRecord {
 
 /* ─── Constants ──────────────────────────────────────────────── */
 const CATEGORIES = [
-  { id: 'all',      label: 'Todos',     icon: Package,  color: '#6B7C93' },
-  { id: 'machines', label: 'Máquinas',  icon: Truck,    color: '#f59e0b' },
-  { id: 'parts',    label: 'Repuestos', icon: Settings, color: '#0ea5e9' },
-  { id: 'supplies', label: 'Insumos',   icon: Tag,      color: '#10b981' },
+  { id: 'all',       label: 'Todos',      icon: Package,  color: '#6B7C93' },
+  { id: 'machinery', label: 'Maquinaria', icon: Truck,    color: '#f59e0b' },
+  { id: 'parts',     label: 'Repuestos',  icon: Settings, color: '#0ea5e9' },
+  { id: 'supplies',  label: 'Insumos',    icon: Tag,      color: '#10b981' },
+  { id: 'caps',      label: 'Gorras',     icon: Package,  color: '#0072CC' },
 ] as const;
 
 const PAYMENT_METHODS = [
@@ -66,7 +69,7 @@ const PAYMENT_METHODS = [
 
 const TAX_RATE = 0.18;
 
-const EMPTY_FORM = { name: '', category: 'machines' as Product['category'], price: 0, stock: 0, description: '', unit: 'unidad' };
+const EMPTY_FORM = { name: '', category: 'machinery' as Product['category'], brand: '', price: 0, stock: 0, description: '', unit: 'unidad' };
 
 /* ─── Helpers ────────────────────────────────────────────────── */
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -94,7 +97,7 @@ const modalBox: React.CSSProperties = {
 /* ═══════════════════════════════════════════════════════════════ */
 const Store: React.FC = () => {
   /* data */
-  const { data: products, loading, add: addProduct, update: updateProduct, remove: removeProduct } = useFirestore<Product>('products');
+  const { data: products, loading, add: addProduct, update: updateProduct, remove: removeProduct } = useFirestore<Product>('inventory');
   const { data: orders, add: addOrder } = useFirestore<OrderRecord>('orders');
 
   /* ui state */
@@ -119,10 +122,13 @@ const Store: React.FC = () => {
   const total    = subtotal + tax;
   const cartQty  = cart.reduce((s, i) => s + i.quantity, 0);
 
-  /* filtered products */
+  /* filtered products — only show items with stock available */
   const filtered = products.filter(p =>
+    p.stock > 0 &&
     (catFilter === 'all' || p.category === catFilter) &&
-    (p.name.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()))
+    (p.name.toLowerCase().includes(search.toLowerCase()) ||
+     (p.description ?? '').toLowerCase().includes(search.toLowerCase()) ||
+     (p.brand ?? '').toLowerCase().includes(search.toLowerCase()))
   );
 
   /* ── cart actions ── */
@@ -173,7 +179,7 @@ const Store: React.FC = () => {
 
   /* ── product form ── */
   const openAddProduct = () => { setEditProduct(null); setFormData({ ...EMPTY_FORM }); setFormError(''); setProductModal(true); };
-  const openEditProduct = (p: Product) => { setEditProduct(p); setFormData({ name: p.name, category: p.category, price: p.price, stock: p.stock, description: p.description || '', unit: p.unit || 'unidad' }); setFormError(''); setProductModal(true); };
+  const openEditProduct = (p: Product) => { setEditProduct(p); setFormData({ name: p.name, category: p.category, brand: p.brand || '', price: p.price, stock: p.stock, description: p.description || '', unit: p.unit || 'unidad' }); setFormError(''); setProductModal(true); };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,7 +301,7 @@ const Store: React.FC = () => {
 
                       {/* Icon */}
                       <div style={{ width: 44, height: 44, borderRadius: 8, background: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-                        {product.category === 'machines'  ? <Truck size={22} />    :
+                        {product.category === 'machinery' ? <Truck size={22} />    :
                          product.category === 'parts'     ? <Settings size={22} /> :
                          <Tag size={22} />}
                       </div>
@@ -303,6 +309,7 @@ const Store: React.FC = () => {
                       {/* Info */}
                       <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-primary))', lineHeight: 1.3 }}>{product.name}</h4>
+                        {product.brand && <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{product.brand}</p>}
                         {product.description && <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 3, lineHeight: 1.4 }}>{product.description}</p>}
                       </div>
 
@@ -312,7 +319,7 @@ const Store: React.FC = () => {
                           S/ {product.price.toFixed(2)}
                         </span>
                         <span style={{ fontSize: 11, color: product.stock < 5 ? '#E11D48' : 'hsl(var(--text-secondary))' }}>
-                          {product.stock} {product.unit}
+                          {product.stock} {product.unit ?? 'unid'}
                         </span>
                       </div>
 
@@ -625,9 +632,10 @@ const Store: React.FC = () => {
                   </div>
                   <Field label="Categoría">
                     <select value={formData.category} onChange={e => setF('category', e.target.value)} style={{ height: 36 }}>
-                      <option value="machines">Máquinas</option>
+                      <option value="machinery">Maquinaria</option>
                       <option value="parts">Repuestos</option>
                       <option value="supplies">Insumos</option>
+                      <option value="caps">Gorras Imp.</option>
                     </select>
                   </Field>
                   <Field label="Unidad">
