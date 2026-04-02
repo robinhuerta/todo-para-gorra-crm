@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ShoppingCart,
   Search,
@@ -18,9 +18,13 @@ import {
   Banknote,
   ArrowLeftRight,
   ChevronLeft,
+  ImagePlus,
+  Camera,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFirestore } from '../hooks/useFirestore';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 
 /* ─── Types ──────────────────────────────────────────────────── */
 interface Product {
@@ -116,6 +120,10 @@ const Store: React.FC = () => {
   const [saving, setSaving]               = useState(false);
   const [formError, setFormError]         = useState('');
   const [confirming, setConfirming]       = useState(false);
+  const [imgFile, setImgFile]             = useState<File | null>(null);
+  const [imgPreview, setImgPreview]       = useState('');
+  const [imgProgress, setImgProgress]     = useState(0);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   /* cart calculations */
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -179,21 +187,50 @@ const Store: React.FC = () => {
   };
 
   /* ── product form ── */
-  const openAddProduct = () => { setEditProduct(null); setFormData({ ...EMPTY_FORM }); setFormError(''); setProductModal(true); };
-  const openEditProduct = (p: Product) => { setEditProduct(p); setFormData({ name: p.name, category: p.category, brand: p.brand || '', price: p.price, stock: p.stock, description: p.description || '', unit: p.unit || 'unidad' }); setFormError(''); setProductModal(true); };
+  const resetImg = () => { setImgFile(null); setImgPreview(''); setImgProgress(0); };
+
+  const openAddProduct = () => {
+    setEditProduct(null); setFormData({ ...EMPTY_FORM }); setFormError('');
+    resetImg(); setProductModal(true);
+  };
+  const openEditProduct = (p: Product) => {
+    setEditProduct(p);
+    setFormData({ name: p.name, category: p.category, brand: p.brand || '', price: p.price, stock: p.stock, description: p.description || '', unit: p.unit || 'unidad' });
+    setFormError(''); resetImg(); setImgPreview(p.imageUrl || ''); setProductModal(true);
+  };
+
+  const handleImgSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setFormError('La imagen no debe superar 5 MB.'); return; }
+    setImgFile(file); setImgPreview(URL.createObjectURL(file)); setFormError('');
+  };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { setFormError('El nombre es obligatorio.'); return; }
     if (formData.price <= 0)   { setFormError('El precio debe ser mayor a 0.'); return; }
-    setSaving(true);
-    setFormError('');
+    setSaving(true); setFormError('');
     try {
-      if (editProduct) await updateProduct(editProduct.id, formData);
-      else             await addProduct(formData);
-      setProductModal(false);
+      let imageUrl = editProduct?.imageUrl || '';
+      if (imgFile) {
+        const path = `inventory/${Date.now()}_${imgFile.name.replace(/\s/g, '_')}`;
+        const sRef = storageRef(storage, path);
+        const task = uploadBytesResumable(sRef, imgFile);
+        imageUrl = await new Promise<string>((resolve, reject) => {
+          task.on('state_changed',
+            snap => setImgProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+            reject,
+            async () => resolve(await getDownloadURL(task.snapshot.ref))
+          );
+        });
+      }
+      const payload = { ...formData, imageUrl };
+      if (editProduct) await updateProduct(editProduct.id, payload);
+      else             await addProduct(payload);
+      setProductModal(false); resetImg();
     } catch { setFormError('Error al guardar. Intenta de nuevo.'); }
-    finally  { setSaving(false); }
+    finally  { setSaving(false); setImgProgress(0); }
   };
 
   const setF = (k: keyof typeof EMPTY_FORM, v: string | number) => setFormData(f => ({ ...f, [k]: v }));
@@ -657,6 +694,45 @@ const Store: React.FC = () => {
                   <div style={{ gridColumn: '1 / -1' }}>
                     <Field label="Descripción (opcional)">
                       <textarea rows={2} placeholder="Breve descripción del producto..." value={formData.description} onChange={e => setF('description', e.target.value)} style={{ resize: 'vertical', padding: '6px 10px', fontSize: 13 }} />
+                    </Field>
+                  </div>
+
+                  {/* Image upload */}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <Field label="Foto del producto">
+                      <input ref={imgInputRef} type="file" accept="image/*" onChange={handleImgSelect} style={{ display: 'none' }} />
+                      {imgPreview ? (
+                        <div style={{ position: 'relative' }}>
+                          <img src={imgPreview} alt="preview" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid hsl(var(--border))', display: 'block' }} />
+                          <button type="button" onClick={() => { setImgPreview(''); setImgFile(null); if (imgInputRef.current) imgInputRef.current.value = ''; }}
+                            style={{ position: 'absolute', top: 7, right: 7, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={12} />
+                          </button>
+                          <button type="button" onClick={() => imgInputRef.current?.click()}
+                            style={{ position: 'absolute', bottom: 7, right: 7, padding: '3px 9px', borderRadius: 5, fontSize: 11, fontWeight: 600, background: 'rgba(0,0,0,0.55)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Camera size={11} /> Cambiar
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => imgInputRef.current?.click()}
+                          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '20px 16px', width: '100%', border: '2px dashed hsl(var(--border))', borderRadius: 8, background: 'hsl(var(--bg-main))', cursor: 'pointer', color: 'hsl(var(--text-secondary))' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#0072CC'; (e.currentTarget as HTMLElement).style.color = '#0072CC'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(var(--border))'; (e.currentTarget as HTMLElement).style.color = 'hsl(var(--text-secondary))'; }}>
+                          <ImagePlus size={20} />
+                          <span style={{ fontSize: 13, fontWeight: 500 }}>Subir foto del producto</span>
+                          <span style={{ fontSize: 11 }}>JPG, PNG o WEBP · máx 5 MB</span>
+                        </button>
+                      )}
+                      {saving && imgFile && imgProgress > 0 && imgProgress < 100 && (
+                        <div style={{ marginTop: 6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'hsl(var(--text-secondary))', marginBottom: 3 }}>
+                            <span>Subiendo...</span><span>{imgProgress}%</span>
+                          </div>
+                          <div style={{ height: 4, background: 'hsl(var(--border))', borderRadius: 2 }}>
+                            <div style={{ height: '100%', width: `${imgProgress}%`, background: '#0072CC', borderRadius: 2, transition: 'width 0.2s' }} />
+                          </div>
+                        </div>
+                      )}
                     </Field>
                   </div>
                 </div>
