@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Package,
   Search,
@@ -12,9 +12,13 @@ import {
   Filter,
   X,
   AlertCircle,
+  ImagePlus,
+  Camera,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFirestore } from '../hooks/useFirestore';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 
 interface InventoryItem {
   id: string;
@@ -26,6 +30,7 @@ interface InventoryItem {
   unit: string;
   description: string;
   status: string;
+  imageUrl?: string;
 }
 
 type FormData = Omit<InventoryItem, 'id'>;
@@ -39,6 +44,7 @@ const EMPTY_FORM: FormData = {
   unit: 'unidad',
   description: '',
   status: 'In Stock',
+  imageUrl: '',
 };
 
 const categoryMeta = {
@@ -68,6 +74,10 @@ const Inventory: React.FC = () => {
   const [formData, setFormData]     = useState<FormData>(EMPTY_FORM);
   const [saving, setSaving]         = useState(false);
   const [formError, setFormError]   = useState('');
+  const [imageFile, setImageFile]   = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: items, loading, add, update, remove } = useFirestore<InventoryItem>('inventory');
 
@@ -86,10 +96,17 @@ const Inventory: React.FC = () => {
   );
 
   /* ── open modal ── */
+  const resetImageState = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setUploadProgress(0);
+  };
+
   const openAdd = () => {
     setEditItem(null);
     setFormData({ ...EMPTY_FORM, category: activeTab });
     setFormError('');
+    resetImageState();
     setModalOpen(true);
   };
 
@@ -104,12 +121,24 @@ const Inventory: React.FC = () => {
       unit:        item.unit || 'unidad',
       description: item.description || '',
       status:      item.status,
+      imageUrl:    item.imageUrl || '',
     });
     setFormError('');
+    resetImageState();
+    setImagePreview(item.imageUrl || '');
     setModalOpen(true);
   };
 
-  const closeModal = () => { setModalOpen(false); setEditItem(null); };
+  const closeModal = () => { setModalOpen(false); setEditItem(null); resetImageState(); };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setFormError('La imagen no debe superar 5 MB.'); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setFormError('');
+  };
 
   /* ── submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,16 +150,34 @@ const Inventory: React.FC = () => {
     setSaving(true);
     setFormError('');
     try {
+      let imageUrl = formData.imageUrl || '';
+
+      // Upload new image if selected
+      if (imageFile) {
+        const path    = `inventory/${Date.now()}_${imageFile.name.replace(/\s/g, '_')}`;
+        const sRef    = storageRef(storage, path);
+        const task    = uploadBytesResumable(sRef, imageFile);
+        imageUrl = await new Promise<string>((resolve, reject) => {
+          task.on('state_changed',
+            snap => setUploadProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+            reject,
+            async () => resolve(await getDownloadURL(task.snapshot.ref))
+          );
+        });
+      }
+
+      const payload = { ...formData, imageUrl };
       if (editItem) {
-        await update(editItem.id, formData);
+        await update(editItem.id, payload);
       } else {
-        await add(formData);
+        await add(payload);
       }
       closeModal();
     } catch {
       setFormError('Error al guardar. Intenta nuevamente.');
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   };
 
@@ -272,12 +319,20 @@ const Inventory: React.FC = () => {
                   >
                     <td style={{ padding: '11px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 6, flexShrink: 0, background: `${meta.color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: meta.color }}>
-                          <Icon size={16} />
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 6, flexShrink: 0,
+                          overflow: 'hidden',
+                          background: `${meta.color}14`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: meta.color,
+                        }}>
+                          {item.imageUrl
+                            ? <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <Icon size={16} />
+                          }
                         </div>
                         <div>
                           <p style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>{item.name}</p>
-                          <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 1 }}>Importación Directa</p>
+                          <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 1 }}>{item.brand}</p>
                         </div>
                       </div>
                     </td>
@@ -416,6 +471,83 @@ const Inventory: React.FC = () => {
                   />
                 </Field>
 
+                {/* Image upload */}
+                <Field label="Foto del producto">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    style={{ display: 'none' }}
+                  />
+                  {imagePreview ? (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={imagePreview}
+                        alt="preview"
+                        style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setImagePreview(''); setImageFile(null); set('imageUrl', ''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                        style={{
+                          position: 'absolute', top: 8, right: 8,
+                          width: 26, height: 26, borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.55)', border: 'none',
+                          color: '#fff', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <X size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          position: 'absolute', bottom: 8, right: 8,
+                          padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                          background: 'rgba(0,0,0,0.55)', border: 'none',
+                          color: '#fff', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 4,
+                        }}
+                      >
+                        <Camera size={11} /> Cambiar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        gap: 8, padding: '24px 16px', width: '100%',
+                        border: '2px dashed hsl(var(--border))', borderRadius: 8,
+                        background: 'hsl(var(--bg-main))', cursor: 'pointer',
+                        color: 'hsl(var(--text-secondary))',
+                        transition: 'border-color 0.15s, color 0.15s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#0072CC'; (e.currentTarget as HTMLElement).style.color = '#0072CC'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(var(--border))'; (e.currentTarget as HTMLElement).style.color = 'hsl(var(--text-secondary))'; }}
+                    >
+                      <ImagePlus size={22} />
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>Subir foto del producto</span>
+                      <span style={{ fontSize: 11 }}>JPG, PNG o WEBP · máx 5 MB</span>
+                    </button>
+                  )}
+                  {/* Upload progress */}
+                  {saving && imageFile && uploadProgress > 0 && uploadProgress < 100 && (
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'hsl(var(--text-secondary))', marginBottom: 3 }}>
+                        <span>Subiendo imagen...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div style={{ height: 4, background: 'hsl(var(--border))', borderRadius: 2 }}>
+                        <div style={{ height: '100%', width: `${uploadProgress}%`, background: '#0072CC', borderRadius: 2, transition: 'width 0.2s' }} />
+                      </div>
+                    </div>
+                  )}
+                </Field>
+
                 <Field label="Estado">
                   <div style={{ display: 'flex', gap: 8 }}>
                     {['In Stock', 'Stock Limitado', 'Sin Stock'].map(s => (
@@ -476,20 +608,29 @@ const Inventory: React.FC = () => {
                 <button onClick={() => setViewItem(null)} style={iconBtn}><X size={18} /></button>
               </div>
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* Icon + name */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {/* Image or icon */}
+                {viewItem.imageUrl ? (
+                  <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid hsl(var(--border))', maxHeight: 200 }}>
+                    <img src={viewItem.imageUrl} alt={viewItem.name} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ) : (
                   <div style={{
-                    width: 52, height: 52, borderRadius: 10, flexShrink: 0,
-                    background: `${categoryMeta[viewItem.category].color}14`,
+                    height: 100, borderRadius: 8,
+                    background: `${categoryMeta[viewItem.category]?.color ?? '#ccc'}14`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: categoryMeta[viewItem.category].color,
+                    color: categoryMeta[viewItem.category]?.color ?? '#ccc',
+                    border: '1px solid hsl(var(--border))',
+                    flexDirection: 'column', gap: 8,
                   }}>
-                    {React.createElement(categoryMeta[viewItem.category].icon, { size: 26 })}
+                    {React.createElement(categoryMeta[viewItem.category]?.icon ?? Package, { size: 32 })}
+                    <span style={{ fontSize: 11, color: 'hsl(var(--text-secondary))' }}>Sin foto</span>
                   </div>
-                  <div>
-                    <h4 style={{ fontSize: 17, fontWeight: 700 }}>{viewItem.name}</h4>
-                    <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{viewItem.brand} · {categoryMeta[viewItem.category].label}</p>
-                  </div>
+                )}
+
+                {/* Name + brand */}
+                <div>
+                  <h4 style={{ fontSize: 17, fontWeight: 700 }}>{viewItem.name}</h4>
+                  <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{viewItem.brand} · {categoryMeta[viewItem.category]?.label ?? viewItem.category}</p>
                 </div>
 
                 <div style={{ height: 1, background: 'hsl(var(--border))' }} />

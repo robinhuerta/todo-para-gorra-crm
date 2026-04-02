@@ -33,6 +33,7 @@ interface Product {
   description?: string;
   unit?: string;
   status?: string;
+  imageUrl?: string;
 }
 
 interface CartItem {
@@ -299,11 +300,15 @@ const Store: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Icon */}
-                      <div style={{ width: 44, height: 44, borderRadius: 8, background: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-                        {product.category === 'machinery' ? <Truck size={22} />    :
-                         product.category === 'parts'     ? <Settings size={22} /> :
-                         <Tag size={22} />}
+                      {/* Image or icon */}
+                      <div style={{ width: '100%', height: 110, borderRadius: 8, overflow: 'hidden', background: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          product.category === 'machinery' ? <Truck size={28} />    :
+                          product.category === 'parts'     ? <Settings size={28} /> :
+                          <Tag size={28} />
+                        )}
                       </div>
 
                       {/* Info */}
