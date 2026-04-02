@@ -122,8 +122,11 @@ const Proformas: React.FC = () => {
     remove: removeProforma,
   } = useFirestore('proformas');
 
+  const defaultExpiry = () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
   const [formData, setFormData] = useState({
-    clientId: '',
+    clientId:   '',
+    expiryDate: defaultExpiry(),
     items: [{ name: '', description: '', quantity: 1, price: 0 }],
   });
 
@@ -145,12 +148,13 @@ const Proformas: React.FC = () => {
     const displayId = `PF-${Date.now().toString().slice(-6)}`;
     const newProforma = {
       displayId,
-      client:  selectedClient?.name    || 'Cliente Genérico',
-      company: selectedClient?.company || 'Empresa',
-      date:    new Date().toISOString().split('T')[0],
-      items:   formData.items,
+      client:     selectedClient?.name    || 'Cliente Genérico',
+      company:    selectedClient?.company || 'Empresa',
+      date:       new Date().toISOString().split('T')[0],
+      expiryDate: formData.expiryDate,
+      items:      formData.items,
       total,
-      status:  'Pendiente' as ProformaStatus,
+      status:     'Pendiente' as ProformaStatus,
     };
     try {
       await addProforma(newProforma);
@@ -160,13 +164,13 @@ const Proformas: React.FC = () => {
         clientName:    newProforma.client,
         clientCompany: newProforma.company,
         date:          newProforma.date,
-        expiryDate:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        expiryDate:    newProforma.expiryDate,
         items:         formData.items,
         subtotal:      total / 1.18,
         tax:           total - total / 1.18,
         total,
       });
-      setFormData({ clientId: '', items: [{ name: '', description: '', quantity: 1, price: 0 }] });
+      setFormData({ clientId: '', expiryDate: defaultExpiry(), items: [{ name: '', description: '', quantity: 1, price: 0 }] });
     } catch (err) {
       console.error('Error saving proforma:', err);
     }
@@ -179,7 +183,7 @@ const Proformas: React.FC = () => {
       clientName:    pf.client,
       clientCompany: pf.company || 'Empresa',
       date:          pf.date,
-      expiryDate:    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      expiryDate:    pf.expiryDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       items:         pf.items || [],
       subtotal:      total / 1.18,
       tax:           total - total / 1.18,
@@ -306,6 +310,7 @@ const Proformas: React.FC = () => {
                   <th style={{ padding: '10px 18px' }}>Cliente</th>
                   <th style={{ padding: '10px 18px', textAlign: 'center' }}>Items</th>
                   <th style={{ padding: '10px 18px' }}>Total</th>
+                  <th style={{ padding: '10px 18px' }}>Vence</th>
                   <th style={{ padding: '10px 18px' }}>Estado</th>
                   <th style={{ padding: '10px 18px', textAlign: 'right' }}>Acciones</th>
                 </tr>
@@ -313,7 +318,7 @@ const Proformas: React.FC = () => {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: 'hsl(var(--text-secondary))', fontSize: 13 }}>
+                    <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: 'hsl(var(--text-secondary))', fontSize: 13 }}>
                       No hay proformas registradas.
                     </td>
                   </tr>
@@ -338,6 +343,17 @@ const Proformas: React.FC = () => {
                     </td>
                     <td style={{ padding: '11px 18px', fontWeight: 700, fontSize: 14 }}>
                       S/ {(typeof pf.total === 'number' ? pf.total : 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: '11px 18px' }}>
+                      {pf.expiryDate ? (
+                        <span style={{
+                          fontSize: 12,
+                          color: new Date(pf.expiryDate) < new Date() ? '#E11D48' : 'hsl(var(--text-secondary))',
+                          fontWeight: new Date(pf.expiryDate) < new Date() ? 600 : 400,
+                        }}>
+                          {new Date(pf.expiryDate).toLocaleDateString('es-PE')}
+                        </span>
+                      ) : <span style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>—</span>}
                     </td>
                     <td style={{ padding: '11px 18px' }}>
                       <StatusDropdown
@@ -600,21 +616,36 @@ const Proformas: React.FC = () => {
               </div>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-secondary))' }}>
-                    Cliente Receptor
-                  </label>
-                  <select
-                    required
-                    value={formData.clientId}
-                    onChange={e => setFormData(f => ({ ...f, clientId: e.target.value }))}
-                    style={{ height: 36 }}
-                  >
-                    <option value="">Selecciona un cliente...</option>
-                    {clients?.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
-                    ))}
-                  </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-secondary))' }}>
+                      Cliente Receptor
+                    </label>
+                    <select
+                      required
+                      value={formData.clientId}
+                      onChange={e => setFormData(f => ({ ...f, clientId: e.target.value }))}
+                      style={{ height: 36 }}
+                    >
+                      <option value="">Selecciona un cliente...</option>
+                      {clients?.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.name} — {c.company}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-secondary))' }}>
+                      Fecha de vencimiento
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.expiryDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => setFormData(f => ({ ...f, expiryDate: e.target.value }))}
+                      style={{ height: 36 }}
+                    />
+                  </div>
                 </div>
 
                 <div>
