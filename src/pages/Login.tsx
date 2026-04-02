@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, LogIn, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const Login: React.FC = () => {
   const { login, user } = useAuth();
@@ -12,6 +14,11 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [resetMode, setResetMode]   = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent]   = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     if (user) navigate('/');
@@ -27,6 +34,21 @@ const Login: React.FC = () => {
       setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleReset = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setResetError('');
+    if (!resetEmail.trim()) { setResetError('Ingresa tu correo.'); return; }
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim());
+      setResetSent(true);
+    } catch {
+      setResetError('No encontramos una cuenta con ese correo.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -189,6 +211,7 @@ const Login: React.FC = () => {
                 </label>
                 <button
                   type="button"
+                  onClick={() => { setResetMode(true); setResetEmail(email); setResetSent(false); setResetError(''); }}
                   style={{ fontSize: 12, color: '#0060B0', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}
                 >
                   ¿Olvidaste tu contraseña?
@@ -299,6 +322,150 @@ const Login: React.FC = () => {
 
       {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── RESET PASSWORD MODAL ─────────────────────────── */}
+      <AnimatePresence>
+        {resetMode && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 100,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+            }}
+            onClick={() => setResetMode(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{   opacity: 0, scale: 0.96, y: 12 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: '#fff', borderRadius: 12, padding: 28,
+                width: '100%', maxWidth: 400,
+                boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                <div>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1E2D3D', margin: 0 }}>
+                    Recuperar contraseña
+                  </h3>
+                  <p style={{ fontSize: 13, color: '#6B7C93', marginTop: 4 }}>
+                    Te enviaremos un enlace para restablecer tu clave.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setResetMode(false)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#6B7C93', padding: 4 }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {resetSent ? (
+                /* Success state */
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%',
+                    background: '#ECFDF5', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 16px',
+                  }}>
+                    <CheckCircle2 size={26} color="#059669" />
+                  </div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#1E2D3D', marginBottom: 6 }}>
+                    ¡Correo enviado!
+                  </p>
+                  <p style={{ fontSize: 13, color: '#6B7C93', lineHeight: 1.6 }}>
+                    Revisa <strong>{resetEmail}</strong>.<br />
+                    Sigue el enlace para crear una nueva contraseña.
+                  </p>
+                  <button
+                    onClick={() => setResetMode(false)}
+                    style={{
+                      marginTop: 20, width: '100%', height: 40,
+                      background: '#0060B0', color: '#fff',
+                      border: 'none', borderRadius: 6,
+                      fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Listo
+                  </button>
+                </div>
+              ) : (
+                /* Form state */
+                <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 13, fontWeight: 500, color: '#1E2D3D' }}>
+                      Correo electrónico
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Mail size={15} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#6B7C93' }} />
+                      <input
+                        type="email"
+                        placeholder="usuario@empresa.com"
+                        value={resetEmail}
+                        onChange={e => setResetEmail(e.target.value)}
+                        autoFocus
+                        style={{
+                          width: '100%', paddingLeft: 34, height: 40,
+                          fontSize: 14, borderRadius: 4,
+                          border: '1px solid #CBD5E1',
+                          background: '#F8FAFC', color: '#1E2D3D',
+                          outline: 'none',
+                        }}
+                        onFocus={e => { e.target.style.borderColor = '#0060B0'; e.target.style.background = '#fff'; }}
+                        onBlur={e =>  { e.target.style.borderColor = '#CBD5E1'; e.target.style.background = '#F8FAFC'; }}
+                      />
+                    </div>
+                  </div>
+
+                  {resetError && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '9px 12px', borderRadius: 6,
+                      background: '#FFF1F2', border: '1px solid #FECDD3',
+                      color: '#E11D48', fontSize: 13,
+                    }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      {resetError}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setResetMode(false)}
+                      style={{
+                        flex: 1, height: 40, background: 'transparent',
+                        border: '1px solid #CBD5E1', borderRadius: 6,
+                        fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#6B7C93',
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      style={{
+                        flex: 2, height: 40,
+                        background: resetLoading ? '#7AB3DC' : '#0060B0',
+                        color: '#fff', border: 'none', borderRadius: 6,
+                        fontSize: 14, fontWeight: 600,
+                        cursor: resetLoading ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {resetLoading ? 'Enviando...' : 'Enviar enlace'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
