@@ -162,10 +162,24 @@ const Store: React.FC = () => {
   /* ── confirm sale ── */
   const handleConfirmSale = async () => {
     if (cart.length === 0) return;
+
+    // Validate stock is still sufficient before confirming
+    const insufficient = cart.filter(i => {
+      const current = products.find(p => p.id === i.product.id);
+      return !current || current.stock < i.quantity;
+    });
+    if (insufficient.length > 0) {
+      const names = insufficient.map(i => i.product.name).join(', ');
+      setFormError(`Stock insuficiente para: ${names}. Actualiza el carrito.`);
+      setConfirmOpen(false);
+      return;
+    }
+
     setConfirming(true);
     try {
+      // 1. Save the order
       await addOrder({
-        items:         cart.map(i => ({ name: i.product.name, price: i.product.price, quantity: i.quantity, unit: i.product.unit })),
+        items:         cart.map(i => ({ name: i.product.name, price: i.product.price, quantity: i.quantity, unit: i.product.unit ?? 'unidad' })),
         subtotal,
         tax,
         total,
@@ -174,6 +188,16 @@ const Store: React.FC = () => {
         date:          new Date().toISOString().split('T')[0],
         status:        'Completado',
       } as Omit<OrderRecord, 'id'>);
+
+      // 2. Decrement stock for each sold item
+      await Promise.all(
+        cart.map(i => {
+          const current = products.find(p => p.id === i.product.id);
+          const newStock = Math.max(0, (current?.stock ?? 0) - i.quantity);
+          return updateProduct(i.product.id, { stock: newStock });
+        })
+      );
+
       setCart([]);
       setClientName('');
       setPayMethod('cash');
@@ -498,12 +522,20 @@ const Store: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Stock error */}
+                {formError && (
+                  <div style={{ margin: '0 16px 8px', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px', borderRadius: 6, background: '#FFF1F2', border: '1px solid #FECDD3', color: '#E11D48', fontSize: 12 }}>
+                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 {/* Confirm button */}
                 <div style={{ padding: '0 16px 16px' }}>
                   <button
                     className="btn-primary"
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14, fontWeight: 600, padding: '10px 0' }}
-                    onClick={() => setConfirmOpen(true)}
+                    onClick={() => { setFormError(''); setConfirmOpen(true); }}
                   >
                     <CheckCircle2 size={16} /> Confirmar Venta
                   </button>
