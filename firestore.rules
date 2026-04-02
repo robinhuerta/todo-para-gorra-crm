@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwn(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // ── Business collections (authenticated users only) ──────
+    match /clients/{doc} {
+      allow read, write: if isAuth();
+    }
+
+    match /inventory/{doc} {
+      allow read, write: if isAuth();
+    }
+
+    match /proformas/{doc} {
+      allow read, write: if isAuth();
+    }
+
+    match /orders/{doc} {
+      allow read, write: if isAuth();
+    }
+
+    match /documents/{doc} {
+      allow read, write: if isAuth();
+    }
+
+    match /products/{doc} {
+      allow read, write: if isAuth();
+    }
+
+    // ── Users collection (role-protected) ────────────────────
+    match /users/{userId} {
+      // Any authenticated user can read their own doc (needed for role check on login)
+      allow read: if isOwn(userId) || isAdmin();
+
+      // User can create their own doc on first login
+      allow create: if isOwn(userId);
+
+      // User can update their own doc BUT cannot change their own role
+      allow update: if isOwn(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+
+      // Only admins can change roles or manage other users' docs
+      allow update, delete: if isAdmin();
+    }
+
+  }
+}
