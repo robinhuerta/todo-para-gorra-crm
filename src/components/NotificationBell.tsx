@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Bell, Package, FileText, Users, ShoppingCart, X, CheckCheck } from 'lucide-react';
+import { Bell, Package, FileText, Users, ShoppingCart, X, CheckCheck, Ship } from 'lucide-react';
 import { useFirestore } from '../hooks/useFirestore';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -8,14 +8,15 @@ interface InventoryItem { id: string; name: string; stock: number; category: str
 interface Proforma      { id: string; clientName?: string; client?: string; status: string; createdAt?: { seconds: number }; }
 interface Client        { id: string; name: string; createdAt?: { seconds: number }; }
 interface Order         { id: string; clientName?: string; total?: number; createdAt?: { seconds: number }; status?: string; }
+interface ImportRow     { id: string; displayId: string; clientName: string; status: string; currentPhaseIndex: number; estimatedArrival?: string; phases?: { phaseIndex: number; startDate?: string }[]; updatedAt?: string; }
 
 interface Notification {
   id:       string;
   type:     'warning' | 'info' | 'success';
-  category: 'stock' | 'proforma' | 'client' | 'order';
+  category: 'stock' | 'proforma' | 'client' | 'order' | 'import';
   title:    string;
   body:     string;
-  time?:    number; // epoch ms
+  time?:    number;
 }
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -31,6 +32,7 @@ const CATEGORY_ICONS: Record<Notification['category'], React.FC<{ size?: number;
   proforma: FileText,
   client:   Users,
   order:    ShoppingCart,
+  import:   Ship,
 };
 
 function timeAgo(ms: number): string {
@@ -55,6 +57,7 @@ const NotificationBell: React.FC = () => {
   const { data: proformas  } = useFirestore<Proforma>('proformas');
   const { data: clients    } = useFirestore<Client>('clients');
   const { data: orders     } = useFirestore<Order>('orders');
+  const { data: imports    } = useFirestore<ImportRow>('imports');
 
   // Close on outside click
   useEffect(() => {
@@ -138,6 +141,67 @@ const NotificationBell: React.FC = () => {
       title:    `${accepted.length} proforma${accepted.length > 1 ? 's' : ''} aceptada${accepted.length > 1 ? 's' : ''}`,
       body:     `Clientes: ${accepted.slice(0, 2).map(p => p.clientName ?? p.client ?? '—').join(', ')}${accepted.length > 2 ? ` y ${accepted.length - 2} más` : ''}`,
       time:     Math.max(...accepted.map(p => (p.createdAt?.seconds ?? 0) * 1000)),
+    });
+  }
+
+  // 5. Importaciones con problema
+  const impProblema = imports.filter(i => i.status === 'con_problema');
+  if (impProblema.length > 0) {
+    notifications.push({
+      id:       'imp-problema',
+      type:     'warning',
+      category: 'import',
+      title:    `${impProblema.length} importación(es) con problema`,
+      body:     impProblema.slice(0, 2).map(i => `${i.displayId} — ${i.clientName}`).join(', '),
+    });
+  }
+
+  // 6. ETA vencida (llegada estimada ya pasó y aún no está en Callao)
+  const today = new Date().toISOString().slice(0, 10);
+  const etaVencidas = imports.filter(i =>
+    i.status === 'activo' && i.estimatedArrival && i.estimatedArrival < today && i.currentPhaseIndex < 6
+  );
+  if (etaVencidas.length > 0) {
+    notifications.push({
+      id:       'imp-eta-vencida',
+      type:     'warning',
+      category: 'import',
+      title:    `${etaVencidas.length} importación(es) con ETA vencida`,
+      body:     `${etaVencidas.slice(0, 2).map(i => i.displayId).join(', ')} — fecha de arribo ya pasó`,
+    });
+  }
+
+  // 7. En aduana SUNAT hace más de 7 días
+  const impEnAduana = imports.filter(i => {
+    if (i.currentPhaseIndex !== 7 || i.status !== 'activo') return false;
+    const phase7 = (i.phases ?? []).find(p => p.phaseIndex === 7);
+    if (!phase7?.startDate) return false;
+    const diffDays = (Date.now() - new Date(phase7.startDate).getTime()) / 86400000;
+    return diffDays > 7;
+  });
+  if (impEnAduana.length > 0) {
+    notifications.push({
+      id:       'imp-aduana-lenta',
+      type:     'warning',
+      category: 'import',
+      title:    `${impEnAduana.length} importación(es) en aduana +7 días`,
+      body:     `${impEnAduana.slice(0, 2).map(i => i.displayId).join(', ')} — revisar estado con Agente de Aduanas`,
+    });
+  }
+
+  // 8. Importaciones entregadas recientemente (últimas 48h)
+  const twoDaysAgoMs = Date.now() - 48 * 60 * 60 * 1000;
+  const impEntregadas = imports.filter(i =>
+    i.status === 'completado' && i.updatedAt && new Date(i.updatedAt).getTime() > twoDaysAgoMs
+  );
+  if (impEntregadas.length > 0) {
+    notifications.push({
+      id:       'imp-entregadas',
+      type:     'success',
+      category: 'import',
+      title:    `${impEntregadas.length} importación(es) entregada${impEntregadas.length > 1 ? 's' : ''}`,
+      body:     impEntregadas.slice(0, 2).map(i => `${i.displayId} — ${i.clientName}`).join(', '),
+      time:     Math.max(...impEntregadas.map(i => new Date(i.updatedAt!).getTime())),
     });
   }
 
