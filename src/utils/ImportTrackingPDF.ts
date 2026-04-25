@@ -15,13 +15,13 @@ const PHASE_NAMES = [
   'Entregado',
 ];
 
-const PRIMARY  = [0,  114, 204] as const; // #0072CC
-const DARK     = [15,  23,  42] as const; // #0F172A
-const SUCCESS  = [5,  150, 105] as const; // #059669
-const WARNING  = [217, 119,  6] as const; // #D97706
-const GRAY     = [100, 116, 139] as const;
-const LGRAY    = [226, 232, 240] as const;
-const WHITE    = [255, 255, 255] as const;
+type RGB = [number, number, number];
+const PRIMARY: RGB  = [0,  114, 204]; // #0072CC
+const DARK: RGB     = [15,  23,  42]; // #0F172A
+const SUCCESS: RGB  = [5,  150, 105]; // #059669
+const GRAY: RGB     = [100, 116, 139];
+const LGRAY: RGB    = [226, 232, 240];
+const WHITE: RGB    = [255, 255, 255];
 
 const fmt2 = (n: number) =>
   n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -65,7 +65,7 @@ export const generateImportTrackingPDF = (imp: ImportRecord) => {
   doc.text(imp.displayId, 15, 53);
 
   const statusLabel = imp.status === 'completado' ? 'COMPLETADO' : imp.status === 'con_problema' ? 'CON PROBLEMA' : imp.status === 'cancelado' ? 'CANCELADO' : 'ACTIVO';
-  const statusColor = imp.status === 'completado' ? SUCCESS : imp.status === 'con_problema' ? [220, 38, 38] as const : imp.status === 'cancelado' ? GRAY : PRIMARY;
+  const statusColor: RGB = imp.status === 'completado' ? SUCCESS : imp.status === 'con_problema' ? [220, 38, 38] : imp.status === 'cancelado' ? GRAY : PRIMARY;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...statusColor);
@@ -101,7 +101,7 @@ export const generateImportTrackingPDF = (imp: ImportRecord) => {
   // Supplier
   doc.setFillColor(255, 237, 213);
   doc.rect(110, y, 85, 30, 'F');
-  doc.setTextColor([234, 88, 12] as unknown as number);
+  doc.setTextColor(234, 88, 12);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.text('PROVEEDOR CHINO', 115, y + 7);
@@ -127,7 +127,7 @@ export const generateImportTrackingPDF = (imp: ImportRecord) => {
   // Progress bar
   doc.setFillColor(...LGRAY);
   doc.rect(15, y, 180, 5, 'F');
-  const barColor = imp.status === 'con_problema' ? [239, 68, 68] as const : imp.status === 'completado' ? SUCCESS : PRIMARY;
+  const barColor: RGB = imp.status === 'con_problema' ? [239, 68, 68] : imp.status === 'completado' ? SUCCESS : PRIMARY;
   doc.setFillColor(...barColor);
   doc.rect(15, y, 180 * pct / 100, 5, 'F');
   doc.setFont('helvetica', 'normal');
@@ -145,13 +145,14 @@ export const generateImportTrackingPDF = (imp: ImportRecord) => {
     const row = Math.floor(i / 2);
     const ry = y + row * 12;
 
-    const dotColor = st === 'completado' ? SUCCESS : st === 'en_progreso' ? PRIMARY : st === 'con_problema' ? [220, 38, 38] as const : LGRAY;
+    const dotColor: RGB = st === 'completado' ? SUCCESS : st === 'en_progreso' ? PRIMARY : st === 'con_problema' ? [220, 38, 38] : LGRAY;
     doc.setFillColor(...dotColor);
     doc.circle(col + 3, ry - 1, 2.5, 'F');
 
     doc.setFont('helvetica', st === 'en_progreso' ? 'bold' : 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(st === 'pendiente' ? ...GRAY : ...DARK);
+    const phaseTextColor = st === 'pendiente' ? GRAY : DARK;
+    doc.setTextColor(...phaseTextColor);
     doc.text(`${i + 1}. ${name}`, col + 8, ry + 1);
 
     if (st !== 'pendiente') {
@@ -249,7 +250,8 @@ export const generateImportTrackingPDF = (imp: ImportRecord) => {
     if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(15, y, 85, 7, 'F'); }
     doc.setFont('helvetica', row.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(row.bold ? ...DARK : ...GRAY);
+    const rowTextColor = row.bold ? DARK : GRAY;
+    doc.setTextColor(...rowTextColor);
     doc.text(row.label, 18, y + 4.5);
     doc.setTextColor(...DARK);
     doc.text(`$ ${row.value}`, 98, y + 4.5, { align: 'right' });
