@@ -15,6 +15,9 @@ import {
   Calendar,
   ShoppingCart,
   AlertTriangle,
+  Ship,
+  Building2,
+  Anchor,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useFirestore } from '../hooks/useFirestore';
@@ -44,8 +47,9 @@ const Dashboard: React.FC = () => {
   const { data: inventory, loading: lInventory  } = useFirestore('inventory');
   const { data: proformas, loading: lProformas  } = useFirestore('proformas');
   const { data: orders,    loading: lOrders     } = useFirestore('orders');
+  const { data: imports,   loading: lImports    } = useFirestore('imports');
 
-  const loading = lClients || lInventory || lProformas || lOrders;
+  const loading = lClients || lInventory || lProformas || lOrders || lImports;
 
   /* ── computed KPIs ── */
   const kpis = useMemo(() => {
@@ -72,8 +76,20 @@ const Dashboard: React.FC = () => {
     const pfTotal  = proformas.length;
     const convRate = pfTotal > 0 ? Math.round((pfAcept / pfTotal) * 100) : 0;
 
-    return { ventasTotal, ventasMes, ventasDelta, totalClients, newClients, machineryStock, lowStock, pfMes, pfAcept, pfTotal, convRate };
-  }, [clients, inventory, proformas, orders]);
+    // Importaciones
+    const impActivas    = imports.filter((i: any) => i.status === 'activo').length;
+    const impTransito   = imports.filter((i: any) => i.currentPhaseIndex === 5 && i.status === 'activo').length;
+    const impAduana     = imports.filter((i: any) => i.currentPhaseIndex === 7 && i.status === 'activo').length;
+    const impProblema   = imports.filter((i: any) => i.status === 'con_problema').length;
+    const impFOBTotal   = imports.reduce((s: number, i: any) => s + (Number(i.fobValue) || 0), 0);
+    const impEntregadas = imports.filter((i: any) => {
+      if (i.status !== 'completado') return false;
+      const d = new Date(i.updatedAt);
+      return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
+    }).length;
+
+    return { ventasTotal, ventasMes, ventasDelta, totalClients, newClients, machineryStock, lowStock, pfMes, pfAcept, pfTotal, convRate, impActivas, impTransito, impAduana, impProblema, impFOBTotal, impEntregadas };
+  }, [clients, inventory, proformas, orders, imports]);
 
   /* ── funnel data from proformas ── */
   const funnel = useMemo(() => {
@@ -96,13 +112,18 @@ const Dashboard: React.FC = () => {
     orders.slice(-2).reverse().forEach((o: any) => {
       events.push({ label: o.clientName || 'Cliente General', sub: `Venta S/ ${(Number(o.total) || 0).toFixed(2)}`, time: o.date || '', type: 'success' });
     });
+    // últimas 2 importaciones
+    imports.slice(-2).reverse().forEach((i: any) => {
+      const phaseNames = ['Solicitud','Orden de Compra','Producción','Inspección','Exportación China','En Tránsito','Puerto Callao','Despacho SUNAT','En Almacén','Listo Entrega','Entregado'];
+      events.push({ label: i.clientName || 'Cliente', sub: `Importación ${i.displayId} — ${phaseNames[i.currentPhaseIndex] ?? ''}`, time: i.createdAt ? new Date(i.createdAt).toLocaleDateString('es-PE') : '', type: 'import' });
+    });
     // últimos 2 clientes
     clients.slice(-2).reverse().forEach((c: any) => {
       events.push({ label: c.name || 'Nuevo cliente', sub: `Registrado — ${c.company || ''}`, time: '', type: 'client' });
     });
 
-    return events.slice(0, 6);
-  }, [proformas, orders, clients]);
+    return events.slice(0, 7);
+  }, [proformas, orders, clients, imports]);
 
   /* ── meta goal: ventas mes vs target (S/10k default) ── */
   const metaTarget = 10000;
@@ -151,6 +172,14 @@ const Dashboard: React.FC = () => {
       delta: orders.filter((o: any) => (o.date || '').startsWith(thisMonth)).length > 0 ? 10 : 0,
       icon:  ShoppingCart,
       color: '#8b5cf6',
+    },
+    {
+      label: 'Importaciones Activas',
+      value: kpis.impActivas.toString(),
+      sub:   kpis.impEntregadas > 0 ? `${kpis.impEntregadas} entregadas este mes` : 'China → Perú en curso',
+      delta: kpis.impActivas > 0 ? 8 : 0,
+      icon:  Ship,
+      color: '#0ea5e9',
     },
   ];
 
@@ -228,6 +257,55 @@ const Dashboard: React.FC = () => {
         >
           <AlertTriangle size={16} style={{ flexShrink: 0 }} />
           <span><strong>{kpis.lowStock} producto(s)</strong> con stock bajo (menos de 5 unidades). Revisa el inventario.</span>
+        </motion.div>
+      )}
+
+      {/* Alert: importaciones con problema */}
+      {!loading && kpis.impProblema > 0 && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13 }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <span><strong>{kpis.impProblema} importación(es) con problema.</strong> Revisa el módulo de Importaciones para más detalles.</span>
+        </motion.div>
+      )}
+
+      {/* Import pipeline mini-widget */}
+      {!loading && imports.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card" style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: '#E0F2FE', color: '#0EA5E9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Ship size={17} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: 14, fontWeight: 600 }}>Importaciones China → Perú</h4>
+                <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>Estado actual del pipeline</p>
+              </div>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#DBEAFE', color: '#1E40AF' }}>
+              {kpis.impActivas} activa{kpis.impActivas !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            {[
+              { label: 'En Producción / Tránsito', value: imports.filter((i: any) => [2,3,4,5].includes(i.currentPhaseIndex) && i.status === 'activo').length, color: '#0EA5E9', Icon: Ship },
+              { label: 'Puerto Callao', value: imports.filter((i: any) => i.currentPhaseIndex === 6 && i.status === 'activo').length, color: '#6366F1', Icon: Anchor },
+              { label: 'Despacho SUNAT', value: kpis.impAduana, color: '#F97316', Icon: Building2 },
+              { label: 'En Almacén / Entrega', value: imports.filter((i: any) => [8,9].includes(i.currentPhaseIndex) && i.status === 'activo').length, color: '#22C55E', Icon: CheckCircle2 },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: '12px 14px', borderRadius: 8, background: s.color + '0D', border: `1px solid ${s.color}30`, textAlign: 'center' }}>
+                <s.Icon size={18} style={{ color: s.color, margin: '0 auto 6px' }} />
+                <p style={{ fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</p>
+                <p style={{ fontSize: 10, color: 'hsl(var(--text-secondary))', marginTop: 4, lineHeight: 1.3 }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+          {kpis.impFOBTotal > 0 && (
+            <div style={{ marginTop: 12, padding: '8px 14px', background: 'hsl(var(--accent))', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>Valor total FOB en proceso</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>$ {kpis.impFOBTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -368,7 +446,7 @@ const Dashboard: React.FC = () => {
                     <div style={{
                       width: 19, height: 19, borderRadius: '50%', flexShrink: 0, zIndex: 1,
                       border: '2px solid hsl(var(--bg-card))',
-                      background: item.type === 'success' ? '#10b981' : item.type === 'doc' ? '#0072CC' : '#0ea5e9',
+                      background: item.type === 'success' ? '#10b981' : item.type === 'doc' ? '#0072CC' : item.type === 'import' ? '#0ea5e9' : '#6366F1',
                     }} />
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-primary))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</p>
