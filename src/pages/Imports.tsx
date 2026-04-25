@@ -4,9 +4,10 @@ import {
   Ship, Search, Plus, X, ChevronLeft, AlertCircle, CheckCircle2,
   Clock, Building2, Warehouse, Anchor, DollarSign, Calendar,
   Boxes, Eye, Trash2, ClipboardList, Factory, PackageCheck,
-  PartyPopper, Flag, Shield, FileText, Globe, Phone, Mail,
-  User, Package, TrendingUp, RefreshCw, ExternalLink,
+  PartyPopper, Flag, Shield, FileText, Globe,
+  User, Package, TrendingUp, RefreshCw, ExternalLink, Download,
 } from 'lucide-react';
+import { generateImportTrackingPDF } from '../utils/ImportTrackingPDF';
 import { useFirestore } from '../hooks/useFirestore';
 import type {
   ImportRecord, ImportPhaseRecord, ImportItem,
@@ -385,6 +386,10 @@ const DetailView: React.FC<{
           )}
           <button onClick={onExhibit} style={{ padding: '7px 14px', background: '#6366F1', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Eye size={13} /> Vista Exhibición
+          </button>
+          <button onClick={() => generateImportTrackingPDF(imp)}
+            style={{ padding: '7px 14px', background: 'transparent', color: 'hsl(var(--text-primary))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Download size={13} /> PDF
           </button>
           <button onClick={onDelete} style={{ padding: '7px 14px', background: 'transparent', color: '#EF4444', border: '1px solid #FCA5A5', borderRadius: 'var(--radius-md)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
             <Trash2 size={13} /> Eliminar
@@ -1050,7 +1055,13 @@ const ExhibitionModal: React.FC<{ imp: ImportRecord; onClose: () => void }> = ({
               {imp.clientCompany && ` · ${imp.clientCompany}`}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', color: '#fff' }}><X size={18} /></button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => generateImportTrackingPDF(imp)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, cursor: 'pointer', color: '#fff', fontSize: 13, fontWeight: 600 }}>
+              <Download size={14} /> Descargar PDF
+            </button>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', color: '#fff' }}><X size={18} /></button>
+          </div>
         </div>
 
         <div style={{ padding: '24px 30px' }}>
@@ -1288,7 +1299,7 @@ const Imports: React.FC = () => {
     setFormError('');
     setSaving(true);
     try {
-      const updatedPhases: ImportPhaseRecord[] = (selected.phases ?? initPhases()).map((p, idx) => {
+      const updatedPhases: ImportPhaseRecord[] = (selected.phases ?? initPhases()).map((p) => {
         if (p.phaseIndex !== selected.currentPhaseIndex) return p;
         const newDocs = phaseForm.docName && phaseForm.docUrl
           ? [...(p.documents ?? []), { id: Date.now().toString(), name: phaseForm.docName, type: phaseForm.docType as any, url: phaseForm.docUrl, uploadedAt: new Date().toISOString() }]
