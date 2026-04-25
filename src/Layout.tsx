@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import NotificationBell from './components/NotificationBell';
+import { GlobalSearch } from './components/GlobalSearch';
 import {
   BarChart3,
   Users,
@@ -12,13 +13,15 @@ import {
   Package,
   FileText,
   ShoppingCart,
-  Search,
   Info,
   Sun,
   Moon,
   ChevronLeft,
   ChevronRight,
   UserCog,
+  Menu,
+  X,
+  Ship,
 } from 'lucide-react';
 
 const ALL_MENU_ITEMS = [
@@ -27,6 +30,7 @@ const ALL_MENU_ITEMS = [
   { id: 'inventory', label: 'Inventario',       icon: Package,      path: '/inventory', roles: ['admin'] },
   { id: 'proformas', label: 'Proformas',        icon: FileText,     path: '/proformas', roles: ['admin'] },
   { id: 'store',     label: 'Tienda Interna',   icon: ShoppingCart, path: '/store',     roles: ['admin', 'vendedor'] },
+  { id: 'imports',   label: 'Importaciones',    icon: Ship,         path: '/imports',   roles: ['admin'] },
   { id: 'docs',      label: 'Documentos',       icon: Info,         path: '/documents', roles: ['admin'] },
   { id: 'users',     label: 'Usuarios',         icon: UserCog,      path: '/users',     roles: ['admin'] },
 ];
@@ -38,10 +42,14 @@ const ROLE_LABELS: Record<string, string> = {
 
 const Layout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location  = useLocation();
   const navigate  = useNavigate();
   const { logout, user, role } = useAuth();
   const { theme, toggleTheme } = useTheme();
+
+  // Close mobile sidebar on route change
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const menuItems = ALL_MENU_ITEMS.filter(
     item => !role || item.roles.includes(role)
@@ -65,9 +73,20 @@ const Layout: React.FC = () => {
         minHeight: '100vh',
       }}
     >
+      {/* ── MOBILE BACKDROP ─────────────────────────────────── */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 40,
+            background: 'rgba(0,0,0,0.4)',
+          }}
+        />
+      )}
+
       {/* ── SIDEBAR ─────────────────────────────────────────── */}
       <aside
-        className="sidebar"
+        className={`sidebar${mobileOpen ? ' sidebar-mobile-open' : ''}`}
         style={{ position: 'sticky', top: 0, height: '100vh' }}
       >
         {/* Logo */}
@@ -202,6 +221,20 @@ const Layout: React.FC = () => {
         <div className="topbar">
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Hamburger (mobile only) */}
+            <button
+              className="hamburger-btn"
+              onClick={() => setMobileOpen(o => !o)}
+              style={{
+                padding: 6, background: 'transparent',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 'var(--radius-sm)',
+                color: 'hsl(var(--text-secondary))',
+                display: 'none', alignItems: 'center',
+              }}
+            >
+              {mobileOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
             <span style={{ fontSize: 13, color: 'hsl(var(--text-secondary))' }}>GORRA CRM</span>
             <ChevronRight size={13} style={{ color: 'hsl(var(--border))' }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-primary))' }}>{activeLabel}</span>
@@ -210,21 +243,7 @@ const Layout: React.FC = () => {
           {/* Right actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* Search */}
-            <div style={{ position: 'relative' }}>
-              <Search
-                size={14}
-                style={{
-                  position: 'absolute', left: 9, top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'hsl(var(--text-secondary))',
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Buscar..."
-                style={{ paddingLeft: 30, paddingRight: 12, height: 32, width: 200, fontSize: 13 }}
-              />
-            </div>
+            <GlobalSearch />
 
             {/* Theme toggle */}
             <button
@@ -261,7 +280,7 @@ const Layout: React.FC = () => {
         {/* Page content */}
         <div
           style={{ flex: 1, padding: 24, overflowY: 'auto' }}
-          className="custom-scrollbar"
+          className="custom-scrollbar page-content"
         >
           <AnimatePresence mode="wait">
             <motion.div

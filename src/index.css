@@ -4,15 +4,28 @@
 /* ─── CREATIO CORPORATE THEME ─────────────────────────────────── */
 
 :root[data-theme='light'] {
-  --primary:        207 89% 40%;      /* #0072CC – Creatio blue */
+  --primary:        207 89% 40%;
   --primary-hover:  207 89% 33%;
-  --bg-main:        220 20% 96%;      /* #F2F4F8 light blue-gray bg */
-  --bg-card:        0 0% 100%;        /* white cards */
-  --bg-sidebar:     0 0% 100%;        /* white sidebar */
-  --text-primary:   213 28% 18%;      /* #1E2D3D dark blue-gray */
-  --text-secondary: 213 14% 50%;      /* #6B7C93 medium gray */
-  --border:         213 18% 88%;      /* #DDEAF5 light border */
-  --accent:         207 89% 95%;      /* #E8F3FC hover tint */
+  --bg-main:        220 20% 96%;
+  --bg-card:        0 0% 100%;
+  --bg-sidebar:     0 0% 100%;
+  --text-primary:   213 28% 18%;
+  --text-secondary: 213 14% 50%;
+  --border:         213 18% 88%;
+  --accent:         207 89% 95%;
+
+  /* semantic tints */
+  --info-bg:        207 89% 95%;      /* #E8F3FC */
+  --info-border:    207 89% 82%;      /* #BFDBFE */
+  --danger-bg:      0 86% 97%;        /* #FFF1F2 */
+  --danger-border:  0 86% 88%;        /* #FECDD3 */
+  --warning-bg:     43 96% 96%;       /* #FFFBEB */
+  --warning-border: 43 96% 82%;       /* #FDE68A */
+  --success-bg:     142 70% 94%;
+  --success-border: 142 70% 80%;
+
+  /* modal overlay */
+  --overlay: rgba(0, 0, 0, 0.35);
 }
 
 :root[data-theme='dark'] {
@@ -25,6 +38,19 @@
   --text-secondary: 215 14% 58%;
   --border:         217 18% 24%;
   --accent:         207 30% 22%;
+
+  /* semantic tints – darker versions for dark mode */
+  --info-bg:        207 40% 18%;
+  --info-border:    207 40% 28%;
+  --danger-bg:      0 40% 15%;
+  --danger-border:  0 40% 28%;
+  --warning-bg:     43 40% 15%;
+  --warning-border: 43 40% 28%;
+  --success-bg:     142 30% 15%;
+  --success-border: 142 30% 28%;
+
+  /* modal overlay */
+  --overlay: rgba(0, 0, 0, 0.6);
 }
 
 :root {
@@ -244,7 +270,79 @@ button {
   border-color: hsl(var(--primary));
 }
 
+/* ─── SEMANTIC COLOR UTILITIES (theme-aware) ─────────────────────── */
+.tint-info {
+  background: hsl(var(--info-bg));
+  border: 1px solid hsl(var(--info-border));
+}
+.tint-danger {
+  background: hsl(var(--danger-bg));
+  border: 1px solid hsl(var(--danger-border));
+}
+.tint-warning {
+  background: hsl(var(--warning-bg));
+  border: 1px solid hsl(var(--warning-border));
+}
+.tint-success {
+  background: hsl(var(--success-bg));
+  border: 1px solid hsl(var(--success-border));
+}
+
+/* Avatar / icon tint */
+.avatar-tint {
+  background: hsl(var(--info-bg));
+  color: hsl(var(--primary));
+}
+
 /* ─── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   :root { --sidebar-width: 64px; }
+}
+
+/* ─── TABLE SCROLL WRAPPER ───────────────────────────────────────── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  min-width: 600px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    width: var(--sidebar-width, 256px) !important;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .sidebar-mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  .hamburger-btn {
+    display: flex !important;
+  }
+
+  .topbar-search {
+    display: none !important;
+  }
+
+  .topbar {
+    padding: 0 12px;
+  }
+
+  .page-content {
+    padding: 12px !important;
+  }
 }

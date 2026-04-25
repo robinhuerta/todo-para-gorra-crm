@@ -203,6 +203,7 @@ const Users: React.FC = () => {
             Cargando usuarios...
           </div>
         ) : (
+          <div className="table-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid hsl(var(--border))' }}>
@@ -323,6 +324,7 @@ const Users: React.FC = () => {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

@@ -12,6 +12,7 @@ import Proformas from './pages/Proformas';
 import Store from './pages/Store';
 import Documents from './pages/Documents';
 import Users from './pages/Users';
+import Imports from './pages/Imports';
 
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -42,6 +43,7 @@ function App() {
               <Route path="proformas" element={<AdminRoute><Proformas /></AdminRoute>} />
               <Route path="documents" element={<AdminRoute><Documents /></AdminRoute>} />
               <Route path="users"     element={<AdminRoute><Users /></AdminRoute>} />
+              <Route path="imports"  element={<AdminRoute><Imports /></AdminRoute>} />
 
               {/* Shared routes (admin + vendedor) */}
               <Route path="clients" element={<Clients />} />
