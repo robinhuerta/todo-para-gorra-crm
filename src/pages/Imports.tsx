@@ -165,7 +165,7 @@ const emptyPhaseForm = (): PhaseForm => ({
 
 const inputSt: React.CSSProperties = {
   width: '100%', padding: '7px 10px', border: '1px solid hsl(var(--border))',
-  borderRadius: 'var(--radius-md)', fontSize: 13, background: 'hsl(var(--surface))',
+  borderRadius: 'var(--radius-md)', fontSize: 13, background: 'hsl(var(--bg-card))',
   color: 'hsl(var(--text-primary))', boxSizing: 'border-box',
 };
 
@@ -645,7 +645,7 @@ const NewImportModal: React.FC<{
   return (
     <Overlay onClose={onClose}>
       <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }}
-        style={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 12, width: '90vw', maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        style={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, width: '90vw', maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Modal header */}
         <div style={{ padding: '18px 24px', borderBottom: '1px solid hsl(var(--border))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -913,7 +913,7 @@ const PhaseUpdateModal: React.FC<{
   return (
     <Overlay onClose={onClose}>
       <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }}
-        style={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 12, width: 560, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        style={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, width: 560, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid hsl(var(--border))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: 8, background: phase.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1040,7 +1040,7 @@ const ExhibitionModal: React.FC<{ imp: ImportRecord; onClose: () => void }> = ({
   return (
     <Overlay onClose={onClose} zIndex={60}>
       <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
-        style={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 16, width: '92vw', maxWidth: 860, maxHeight: '92vh', overflow: 'auto' }}>
+        style={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 16, width: '92vw', maxWidth: 860, maxHeight: '92vh', overflow: 'auto' }}>
         {/* Header */}
         <div style={{ background: 'hsl(var(--primary))', padding: '20px 30px', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -1595,7 +1595,7 @@ const Imports: React.FC = () => {
           {showDelete && (
             <Overlay onClose={() => setShowDelete(null)}>
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                style={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 12, padding: 28, width: 400 }}>
+                style={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, padding: 28, width: 400 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, color: '#DC2626', marginBottom: 8 }}>Eliminar Importación</h3>
                 <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginBottom: 20 }}>
                   ¿Eliminar <strong>{showDelete.displayId}</strong>? Esta acción no se puede deshacer.
@@ -1664,7 +1664,7 @@ const Imports: React.FC = () => {
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-secondary))' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por cliente, código, proveedor..."
-            style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', fontSize: 13, background: 'hsl(var(--surface))', color: 'hsl(var(--text-primary))', boxSizing: 'border-box' }} />
+            style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', fontSize: 13, background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', boxSizing: 'border-box' }} />
         </div>
         {(['todos', 'activo', 'con_problema', 'completado', 'cancelado'] as const).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
@@ -1722,7 +1722,7 @@ const Imports: React.FC = () => {
         {showDelete && (
           <Overlay onClose={() => setShowDelete(null)}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              style={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 12, padding: 28, width: 400 }}>
+              style={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, padding: 28, width: 400 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#DC2626', marginBottom: 8 }}>Eliminar Importación</h3>
               <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginBottom: 20 }}>
                 ¿Eliminar <strong>{showDelete.displayId}</strong>? Esta acción no se puede deshacer.
