@@ -1,11 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
 import { db, secondaryAuth } from '../firebase';
 import { useAuth, type UserRole } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserCog, Shield, ShoppingBag, RefreshCw, UserPlus, X, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { UserCog, Shield, ShoppingBag, RefreshCw, UserPlus, X, Eye, EyeOff, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface UserRecord {
   uid:       string;
@@ -48,10 +48,14 @@ const Users: React.FC = () => {
   const [saving,     setSaving]     = useState<string | null>(null);
   const [modalOpen,  setModalOpen]  = useState(false);
   const [form,       setForm]       = useState(EMPTY_FORM);
-  const [showPwd,    setShowPwd]    = useState(false);
-  const [creating,   setCreating]   = useState(false);
-  const [formError,  setFormError]  = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [showPwd,      setShowPwd]      = useState(false);
+  const [creating,     setCreating]     = useState(false);
+  const [formError,    setFormError]    = useState('');
+  const [successMsg,   setSuccessMsg]   = useState('');
+  const [showClear,    setShowClear]    = useState(false);
+  const [clearConfirm, setClearConfirm] = useState('');
+  const [clearing,     setClearing]     = useState(false);
+  const [clearDone,    setClearDone]    = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -119,6 +123,24 @@ const Users: React.FC = () => {
       else setFormError('Error al crear el usuario. Intenta de nuevo.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleClearData = async () => {
+    if (clearConfirm !== 'LIMPIAR') return;
+    setClearing(true);
+    try {
+      const cols = ['imports', 'inventory', 'proformas', 'clients', 'sales'];
+      for (const col of cols) {
+        const snap = await getDocs(collection(db, col));
+        const batch = writeBatch(db);
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+      setClearDone(true);
+      setClearConfirm('');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -342,6 +364,38 @@ const Users: React.FC = () => {
         </p>
       </div>
 
+      {/* ── ZONA DE PELIGRO ─────────────────────────────────── */}
+      <div style={{
+        marginTop: 32, padding: '20px 24px',
+        border: '1px solid #FECACA', borderRadius: 10,
+        background: '#FFF5F5',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Trash2 size={18} color="#DC2626" />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#991B1B', margin: 0 }}>Zona de Peligro — Limpiar datos de prueba</p>
+              <p style={{ fontSize: 12, color: '#B91C1C', margin: 0, marginTop: 2 }}>
+                Elimina todos los registros de: importaciones, inventario, proformas, clientes y ventas. No borra usuarios.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => { setShowClear(true); setClearConfirm(''); setClearDone(false); }}
+            style={{
+              padding: '8px 18px', fontSize: 13, fontWeight: 600,
+              background: '#DC2626', color: '#fff', border: 'none',
+              borderRadius: 8, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            <Trash2 size={14} /> Limpiar todo
+          </button>
+        </div>
+      </div>
+
       {/* ── CREATE USER MODAL ───────────────────────────────── */}
       <AnimatePresence>
         {modalOpen && (
@@ -534,6 +588,89 @@ const Users: React.FC = () => {
                 >
                   {creating ? 'Creando...' : <><UserPlus size={14} /> Crear Usuario</>}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {/* ── CLEAR DATA MODAL ──────────────────────────────── */}
+        {showClear && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            onClick={e => { if (e.target === e.currentTarget && !clearing) setShowClear(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              style={{ background: 'hsl(var(--bg-card))', borderRadius: 12, width: '100%', maxWidth: 420, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
+            >
+              <div style={{ padding: '18px 20px', borderBottom: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={18} color="#DC2626" />
+                </div>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))', margin: 0 }}>Limpiar datos de prueba</p>
+                  <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))', margin: 0 }}>Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {clearDone ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 8 }}>
+                    <CheckCircle2 size={18} color="#059669" />
+                    <p style={{ fontSize: 13, color: '#065F46', margin: 0, fontWeight: 600 }}>¡Listo! Todos los datos de prueba fueron eliminados.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8 }}>
+                      <p style={{ fontSize: 12, color: '#991B1B', margin: 0 }}>
+                        Se eliminarán <strong>todos</strong> los registros de:
+                      </p>
+                      <ul style={{ fontSize: 12, color: '#B91C1C', margin: '6px 0 0 0', paddingLeft: 18 }}>
+                        <li>Importaciones</li>
+                        <li>Inventario</li>
+                        <li>Proformas</li>
+                        <li>Clientes</li>
+                        <li>Ventas</li>
+                      </ul>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-primary))' }}>
+                        Escribe <strong>LIMPIAR</strong> para confirmar:
+                      </label>
+                      <input
+                        type="text"
+                        value={clearConfirm}
+                        onChange={e => setClearConfirm(e.target.value)}
+                        placeholder="LIMPIAR"
+                        style={{ height: 38, fontSize: 14, padding: '0 12px', fontWeight: 600, letterSpacing: 1 }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div style={{ padding: '14px 20px', borderTop: '1px solid hsl(var(--border))', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowClear(false)}
+                  style={{ padding: '8px 18px', fontSize: 13, background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: 8, cursor: 'pointer', color: 'hsl(var(--text-secondary))' }}
+                >
+                  {clearDone ? 'Cerrar' : 'Cancelar'}
+                </button>
+                {!clearDone && (
+                  <button
+                    onClick={handleClearData}
+                    disabled={clearConfirm !== 'LIMPIAR' || clearing}
+                    style={{
+                      padding: '8px 20px', fontSize: 13, fontWeight: 600,
+                      background: clearConfirm === 'LIMPIAR' ? '#DC2626' : '#FCA5A5',
+                      color: '#fff', border: 'none', borderRadius: 8,
+                      cursor: clearConfirm === 'LIMPIAR' && !clearing ? 'pointer' : 'not-allowed',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    {clearing ? 'Eliminando...' : <><Trash2 size={13} /> Confirmar limpieza</>}
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
