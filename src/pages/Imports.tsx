@@ -8,6 +8,7 @@ import {
   User, Package, TrendingUp, RefreshCw, ExternalLink, Download,
 } from 'lucide-react';
 import { generateImportTrackingPDF } from '../utils/ImportTrackingPDF';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useFirestore } from '../hooks/useFirestore';
 import type {
   ImportRecord, ImportPhaseRecord, ImportItem,
@@ -1146,12 +1147,212 @@ const ExhibitionModal: React.FC<{ imp: ImportRecord; onClose: () => void }> = ({
   );
 };
 
+// ─── STATS VIEW ───────────────────────────────────────────────────────────────
+
+const CHART_COLORS = ['#6366F1','#0EA5E9','#F59E0B','#22C55E','#EC4899','#F97316','#8B5CF6','#06B6D4','#84CC16','#10B981','#EF4444'];
+
+const StatsView: React.FC<{ imports: ImportRecord[] }> = ({ imports }) => {
+  const stats = useMemo(() => {
+    // Por estado
+    const byStatus = [
+      { name: 'Activo',       value: imports.filter(i => i.status === 'activo').length,       color: '#0EA5E9' },
+      { name: 'Completado',   value: imports.filter(i => i.status === 'completado').length,   color: '#22C55E' },
+      { name: 'Con Problema', value: imports.filter(i => i.status === 'con_problema').length, color: '#EF4444' },
+      { name: 'Cancelado',    value: imports.filter(i => i.status === 'cancelado').length,    color: '#9CA3AF' },
+    ].filter(s => s.value > 0);
+
+    // Por fase actual (solo activos)
+    const byPhase = PHASES.map(p => ({
+      name: p.name.length > 16 ? p.name.slice(0, 14) + '…' : p.name,
+      fullName: p.name,
+      count: imports.filter(i => i.currentPhaseIndex === p.index && i.status === 'activo').length,
+      color: p.color,
+    })).filter(p => p.count > 0);
+
+    // Por Incoterm
+    const incotermMap: Record<string, number> = {};
+    imports.forEach(i => { incotermMap[i.incoterm] = (incotermMap[i.incoterm] ?? 0) + 1; });
+    const byIncoterm = Object.entries(incotermMap).map(([name, value], i) => ({ name, value, color: CHART_COLORS[i] }));
+
+    // Por tipo de transporte
+    const transMap: Record<string, number> = {};
+    imports.forEach(i => {
+      const label = TRANSPORT_OPTIONS.find(o => o.value === i.transportType)?.label ?? i.transportType;
+      transMap[label] = (transMap[label] ?? 0) + 1;
+    });
+    const byTransport = Object.entries(transMap).map(([name, value], i) => ({ name, value, color: CHART_COLORS[i + 3] }));
+
+    // FOB por mes (últimos 6 meses)
+    const fobByMonth: Record<string, number> = {};
+    imports.forEach(i => {
+      const m = i.createdAt ? i.createdAt.slice(0, 7) : null;
+      if (m) fobByMonth[m] = (fobByMonth[m] ?? 0) + (i.fobValue || 0);
+    });
+    const fobMonths = Object.entries(fobByMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, fob]) => ({
+        month: new Date(month + '-01').toLocaleDateString('es-PE', { month: 'short', year: '2-digit' }),
+        fob: Math.round(fob),
+      }));
+
+    // Top proveedores
+    const suppMap: Record<string, number> = {};
+    imports.forEach(i => { suppMap[i.supplierCity] = (suppMap[i.supplierCity] ?? 0) + 1; });
+    const topSuppliers = Object.entries(suppMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6)
+      .map(([city, count], i) => ({ city, count, color: CHART_COLORS[i] }));
+
+    // Totales financieros
+    const totalFOB   = imports.reduce((s, i) => s + (i.fobValue || 0), 0);
+    const totalCIF   = imports.reduce((s, i) => s + (i.cifValue || 0), 0);
+    const totalTrib  = imports.reduce((s, i) => s + (i.totalTributes || 0), 0);
+    const totalCosto = imports.reduce((s, i) => s + (i.totalImportCost || 0), 0);
+
+    return { byStatus, byPhase, byIncoterm, byTransport, fobMonths, topSuppliers, totalFOB, totalCIF, totalTrib, totalCosto };
+  }, [imports]);
+
+  if (imports.length === 0) {
+    return (
+      <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+        <TrendingUp size={40} style={{ color: 'hsl(var(--border))', margin: '0 auto 12px' }} />
+        <p style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Sin datos suficientes</p>
+        <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 4 }}>Crea importaciones para ver las estadísticas</p>
+      </div>
+    );
+  }
+
+  const cardStyle: React.CSSProperties = { padding: '18px 20px' };
+  const titleStyle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'hsl(var(--text-primary))', marginBottom: 16 };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Totales financieros */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        {[
+          { label: 'Total FOB acumulado',      value: fmtUSD(stats.totalFOB),   color: '#6366F1' },
+          { label: 'Total CIF (base imponible)', value: fmtUSD(stats.totalCIF),  color: '#0EA5E9' },
+          { label: 'Tributos SUNAT pagados',    value: fmtUSD(stats.totalTrib),  color: '#F97316' },
+          { label: 'Costo total importaciones', value: fmtUSD(stats.totalCosto), color: '#10B981' },
+        ].map((s, i) => (
+          <motion.div key={i} className="card" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            style={{ padding: '14px 18px' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 3 }}>{s.label}</div>
+          </motion.div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* FOB por mes */}
+        <div className="card" style={cardStyle}>
+          <p style={titleStyle}>Valor FOB por Mes (USD)</p>
+          {stats.fobMonths.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.fobMonths} margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: any) => [`$ ${Number(v).toLocaleString()}`, 'FOB']} />
+                <Bar dataKey="fob" fill="#6366F1" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>Sin datos por mes aún</p>}
+        </div>
+
+        {/* Por estado - pie */}
+        <div className="card" style={cardStyle}>
+          <p style={titleStyle}>Distribución por Estado</p>
+          {stats.byStatus.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={stats.byStatus} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  {stats.byStatus.map((s, i) => <Cell key={i} fill={s.color} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>Sin datos</p>}
+        </div>
+
+        {/* Fases activas */}
+        <div className="card" style={cardStyle}>
+          <p style={titleStyle}>Importaciones Activas por Fase</p>
+          {stats.byPhase.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.byPhase} layout="vertical" margin={{ top: 0, right: 30, left: 100, bottom: 0 }}>
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
+                <Tooltip formatter={(v: any) => [v, 'Importaciones']} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {stats.byPhase.map((p, i) => <Cell key={i} fill={p.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>Ninguna activa en fases intermedias</p>}
+        </div>
+
+        {/* Incoterm + Transporte */}
+        <div className="card" style={cardStyle}>
+          <p style={titleStyle}>Por Incoterm y Tipo de Transporte</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {/* Incoterm */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 10, textTransform: 'uppercase' }}>Incoterm</p>
+              {stats.byIncoterm.map((s, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
+                    <span style={{ fontSize: 12, color: 'hsl(var(--text-primary))' }}>{s.name}</span>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+            {/* Transporte */}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 10, textTransform: 'uppercase' }}>Transporte</p>
+              {stats.byTransport.map((s, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
+                    <span style={{ fontSize: 11, color: 'hsl(var(--text-primary))', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Top ciudades proveedoras */}
+        {stats.topSuppliers.length > 0 && (
+          <div className="card" style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+            <p style={titleStyle}>Top Ciudades Proveedoras (China)</p>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={stats.topSuppliers.map(s => ({ name: s.city, count: s.count, color: s.color }))} margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip formatter={(v: any) => [v, 'Importaciones']} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {stats.topSuppliers.map((s, i) => <Cell key={i} fill={s.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 const Imports: React.FC = () => {
   const { data: imports, loading, add: addImport, update: updateImport, remove: removeImport } = useFirestore<ImportRecord>('imports');
 
   const [selected, setSelected] = useState<ImportRecord | null>(null);
+  const [pageView, setPageView] = useState<'lista' | 'stats'>('lista');
   const [showNew, setShowNew] = useState(false);
   const [showPhase, setShowPhase] = useState(false);
   const [showExhibition, setShowExhibition] = useState<ImportRecord | null>(null);
@@ -1426,10 +1627,21 @@ const Imports: React.FC = () => {
             Seguimiento completo del proceso de importación — desde la solicitud del cliente hasta la entrega
           </p>
         </div>
-        <button className="btn-primary" onClick={() => { setShowNew(true); setTab(0); setNewForm(emptyNew()); setItems([]); setFormError(''); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Plus size={15} /> Nueva Importación
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Vista toggle */}
+          <div style={{ display: 'flex', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            {(['lista', 'stats'] as const).map(v => (
+              <button key={v} onClick={() => setPageView(v)}
+                style={{ padding: '7px 14px', background: pageView === v ? 'hsl(var(--primary))' : 'transparent', color: pageView === v ? '#fff' : 'hsl(var(--text-secondary))', border: 'none', fontSize: 13, fontWeight: pageView === v ? 600 : 400, cursor: 'pointer', transition: 'all 0.12s' }}>
+                {v === 'lista' ? 'Lista' : 'Estadísticas'}
+              </button>
+            ))}
+          </div>
+          <button className="btn-primary" onClick={() => { setShowNew(true); setTab(0); setNewForm(emptyNew()); setItems([]); setFormError(''); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Plus size={15} /> Nueva Importación
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -1442,7 +1654,11 @@ const Imports: React.FC = () => {
         <StatCard label="Valor Total FOB" value={fmtUSD(kpis.totalFOB)} color="#8B5CF6" icon={<TrendingUp size={20} />} />
       </div>
 
-      {/* Filters */}
+      {/* Stats view */}
+      {pageView === 'stats' && <StatsView imports={imports} />}
+
+      {/* Filters + List — only in list view */}
+      {pageView === 'lista' && <>
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 220, position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-secondary))' }} />
@@ -1487,6 +1703,7 @@ const Imports: React.FC = () => {
           </AnimatePresence>
         </div>
       )}
+      </>}
 
       {/* Modals */}
       <AnimatePresence>
