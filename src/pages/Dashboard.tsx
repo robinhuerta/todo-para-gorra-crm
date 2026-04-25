@@ -1,5 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 import {
   TrendingUp,
   Users,
@@ -42,6 +44,18 @@ const SkeletonCard = () => (
 
 /* ═══════════════════════════════════════════════════════════ */
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const [showNewMenu, setShowNewMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowNewMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   /* live Firestore data */
   const { data: clients,   loading: lClients   } = useFirestore('clients');
   const { data: inventory, loading: lInventory  } = useFirestore('inventory');
@@ -132,6 +146,90 @@ const Dashboard: React.FC = () => {
   /* ── funnel max para barras ── */
   const funnelMax = Math.max(...funnel.map(f => f.count), 1);
 
+  const exportReport = () => {
+    const doc = new jsPDF();
+    const W = 210;
+    const now = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    // Header
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, W, 36, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('TODO PARA GORRA', 15, 14);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Reporte de Business Performance', 15, 21);
+    doc.text(`Generado: ${now}`, 15, 27);
+
+    // KPI section
+    let y = 46;
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('RESUMEN GENERAL', 15, y);
+    y += 8;
+
+    const kpiRows = [
+      ['Ventas Totales',          fmt(kpis.ventasTotal)],
+      ['Ventas Este Mes',         fmt(kpis.ventasMes)],
+      ['Clientes Registrados',    kpis.totalClients.toString()],
+      ['Nuevos Clientes (mes)',   kpis.newClients.toString()],
+      ['Proformas Este Mes',      kpis.pfMes.toString()],
+      ['Proformas Aceptadas',     `${kpis.pfAcept} (${kpis.convRate}%)`],
+      ['Stock Maquinaria',        `${kpis.machineryStock} unidades`],
+      ['Productos Stock Bajo',    kpis.lowStock.toString()],
+      ['Importaciones Activas',   kpis.impActivas.toString()],
+      ['Importaciones En Tránsito', kpis.impTransito.toString()],
+      ['Importaciones En Aduana', kpis.impAduana.toString()],
+      ['Importaciones Con Problema', kpis.impProblema.toString()],
+      ['Valor FOB Total Imports', `$ ${kpis.impFOBTotal.toFixed(2)}`],
+      ['Entregadas Este Mes',     kpis.impEntregadas.toString()],
+    ];
+
+    kpiRows.forEach(([label, value], i) => {
+      if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(15, y, 180, 8, 'F'); }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(label, 18, y + 5.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text(value, 190, y + 5.5, { align: 'right' });
+      y += 8;
+    });
+
+    // Funnel
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('EMBUDO DE PROFORMAS', 15, y);
+    y += 8;
+    funnel.forEach(({ step, count }, i) => {
+      if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(15, y, 180, 8, 'F'); }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(step, 18, y + 5.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text(count.toString(), 190, y + 5.5, { align: 'right' });
+      y += 8;
+    });
+
+    // Footer
+    doc.setFillColor(226, 232, 240);
+    doc.rect(0, 283, W, 0.5, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`TODO PARA GORRA  ·  Lima, Perú  ·  ${now}`, W / 2, 289, { align: 'center' });
+
+    doc.save(`Reporte_Dashboard_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   const statCards = [
     {
       label: 'Ventas Totales',
@@ -197,12 +295,44 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={exportReport} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Calendar size={14} /> Exportar Reporte
           </button>
-          <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Plus size={15} /> Nueva Operación
-          </button>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button onClick={() => setShowNewMenu(v => !v)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Plus size={15} /> Nueva Operación
+            </button>
+            {showNewMenu && (
+              <div style={{
+                position: 'absolute', top: '110%', right: 0, zIndex: 200,
+                background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))',
+                borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                minWidth: 200, overflow: 'hidden',
+              }}>
+                {[
+                  { label: 'Nueva Importación', icon: Ship,         path: '/imports',   color: '#0ea5e9' },
+                  { label: 'Nueva Proforma',     icon: FileText,     path: '/proformas', color: '#10b981' },
+                  { label: 'Nuevo Cliente',      icon: Users,        path: '/clients',   color: '#8b5cf6' },
+                  { label: 'Nueva Venta',        icon: ShoppingCart, path: '/store',     color: '#f59e0b' },
+                ].map(item => (
+                  <button key={item.path} onClick={() => { navigate(item.path); setShowNewMenu(false); }}
+                    style={{
+                      width: '100%', padding: '10px 16px', border: 'none', background: 'transparent',
+                      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                      fontSize: 13, color: 'hsl(var(--text-primary))', textAlign: 'left',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--bg-main))')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ width: 28, height: 28, borderRadius: 6, background: `${item.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <item.icon size={14} color={item.color} />
+                    </div>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
