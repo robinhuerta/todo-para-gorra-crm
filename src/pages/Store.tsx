@@ -5,7 +5,7 @@ import {
   ShoppingCart, Search, Plus, Minus, Trash2, X, CheckCircle2,
   Package, Truck, Settings, ClipboardList, AlertCircle, Tag,
   CreditCard, Banknote, ArrowLeftRight, ChevronLeft, ImagePlus,
-  Camera, Eye, RotateCcw, Download, Percent,
+  Camera, Eye, RotateCcw, Download, Percent, BookOpen, MessageCircle, ZoomIn,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFirestore } from '../hooks/useFirestore';
@@ -100,6 +100,36 @@ const statusBadge = (status: string) => {
   if (status === 'Completado') return { bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' };
   if (status === 'Devuelto')   return { bg: '#FFF7ED', color: '#EA580C', border: '#FED7AA' };
   return { bg: 'hsl(var(--bg-main))', color: 'hsl(var(--text-secondary))', border: 'hsl(var(--border))' };
+};
+
+/* ─── Helpers PDF ───────────────────────────────────────────── */
+const hexToRgb = (hex: string): [number, number, number] => [
+  parseInt(hex.slice(1, 3), 16),
+  parseInt(hex.slice(3, 5), 16),
+  parseInt(hex.slice(5, 7), 16),
+];
+
+const loadImageBase64 = (url: string): Promise<string | null> =>
+  new Promise(resolve => {
+    const timeout = setTimeout(() => resolve(null), 6000);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      clearTimeout(timeout);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 400;
+        canvas.height = img.naturalHeight || 300;
+        canvas.getContext('2d')!.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      } catch { resolve(null); }
+    };
+    img.onerror = () => { clearTimeout(timeout); resolve(null); };
+    img.src = url;
+  });
+
+const CAT_COLORS: Record<string, string> = {
+  machinery: '#f59e0b', parts: '#0ea5e9', supplies: '#10b981', caps: '#0072CC',
 };
 
 /* ─── PDF ────────────────────────────────────────────────────── */
@@ -201,6 +231,7 @@ const Store: React.FC = () => {
   /* data */
   const { data: products, loading, add: addProduct, update: updateProduct, remove: removeProduct } = useFirestore<Product>('inventory');
   const { data: orders, add: addOrder, update: updateOrder } = useFirestore<OrderRecord>('orders');
+  const { data: clients } = useFirestore<{ id: string; name: string; phone: string }>('clients');
 
   /* ui state */
   const [view, setView]             = useState<'store' | 'orders'>('store');
@@ -239,6 +270,14 @@ const Store: React.FC = () => {
 
   /* last saved order for PDF */
   const [lastSavedOrder, setLastSavedOrder] = useState<OrderRecord | null>(null);
+
+  /* lightbox + catalog */
+  const [lightboxProduct, setLightboxProduct] = useState<Product | null>(null);
+  const [imgHovered, setImgHovered]           = useState<string | null>(null);
+  const [catalogModal, setCatalogModal]       = useState(false);
+  const [catalogLoading, setCatalogLoading]   = useState(false);
+  const [catalogClientId, setCatalogClientId] = useState('');
+  const [catalogCat, setCatalogCat]           = useState('all');
 
   /* ── cart calculations ── */
   const subtotal     = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -359,6 +398,133 @@ const Store: React.FC = () => {
     }
   };
 
+  /* ── catalog generator ── */
+  const generarCatalogo = async (openWhatsApp = false) => {
+    const productosExportar = catalogCat === 'all'
+      ? products
+      : products.filter(p => p.category === catalogCat);
+    if (productosExportar.length === 0) return;
+
+    setCatalogLoading(true);
+    try {
+      const imageMap: Record<string, string | null> = {};
+      await Promise.all(
+        productosExportar.filter(p => p.imageUrl).map(async p => {
+          imageMap[p.id] = await loadImageBase64(p.imageUrl!);
+        })
+      );
+
+      const doc = new jsPDF();
+      const W = 210; const margin = 13; const colGap = 7;
+      const colW = (W - margin * 2 - colGap) / 2;
+      const cardH = 80; const imgAreaH = 52; const pageHeaderH = 26;
+
+      // ── Portada ──
+      doc.setFillColor(0, 114, 204);
+      doc.rect(0, 0, W, 90, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(36); doc.setFont('helvetica', 'bold');
+      doc.text('GORRA', W / 2, 42, { align: 'center' });
+      doc.setFontSize(13); doc.setFont('helvetica', 'normal');
+      doc.text('CATÁLOGO DE PRODUCTOS', W / 2, 58, { align: 'center' });
+      doc.setFontSize(9);
+      doc.text(new Date().toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase(), W / 2, 72, { align: 'center' });
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.text('Máquinas, repuestos e insumos para la confección de gorras', W / 2, 106, { align: 'center' });
+
+      let cy = 124;
+      for (const cat of CATEGORIES.filter(c => c.id !== 'all')) {
+        const count = productosExportar.filter(p => p.category === cat.id).length;
+        if (count === 0) continue;
+        const [r, g, b] = hexToRgb(cat.color);
+        doc.setFillColor(r, g, b);
+        doc.circle(margin + 4, cy - 1.5, 2.5, 'F');
+        doc.setTextColor(15, 23, 42); doc.setFontSize(10);
+        doc.text(`${cat.label}: ${count} producto${count !== 1 ? 's' : ''}`, margin + 10, cy);
+        cy += 9;
+      }
+
+      // ── Páginas de productos ──
+      let page = 0;
+      for (let i = 0; i < productosExportar.length; i++) {
+        const col = i % 2;
+        const row = Math.floor((i % 6) / 2);
+        if (i % 6 === 0) {
+          doc.addPage(); page++;
+          doc.setFillColor(0, 114, 204);
+          doc.rect(0, 0, W, pageHeaderH, 'F');
+          doc.setTextColor(255, 255, 255); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+          doc.text('GORRA — Catálogo de Productos', margin, pageHeaderH - 8);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+          doc.text(`Página ${page}`, W - margin, pageHeaderH - 8, { align: 'right' });
+        }
+        const p = productosExportar[i];
+        const x = margin + col * (colW + colGap);
+        const y = pageHeaderH + 6 + row * (cardH + 6);
+        const color = CAT_COLORS[p.category] ?? '#6B7C93';
+        const [r, g, b] = hexToRgb(color);
+
+        // Card bg
+        doc.setFillColor(248, 250, 252); doc.setDrawColor(220, 228, 240);
+        doc.roundedRect(x, y, colW, cardH, 2, 2, 'FD');
+
+        // Image area
+        if (imageMap[p.id]) {
+          try {
+            doc.addImage(imageMap[p.id]!, 'JPEG', x + 1, y + 1, colW - 2, imgAreaH - 2, undefined, 'FAST');
+          } catch { /* fallback below */ }
+        }
+        if (!imageMap[p.id]) {
+          doc.setFillColor(r + Math.round((255 - r) * 0.88), g + Math.round((255 - g) * 0.88), b + Math.round((255 - b) * 0.88));
+          doc.roundedRect(x + 1, y + 1, colW - 2, imgAreaH - 2, 2, 2, 'F');
+          doc.setTextColor(r, g, b); doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+          doc.text(p.name.slice(0, 2).toUpperCase(), x + colW / 2, y + imgAreaH / 2 + 4, { align: 'center' });
+        }
+
+        // Category badge
+        doc.setFillColor(r, g, b);
+        doc.roundedRect(x + 3, y + imgAreaH - 9, 32, 8, 1, 1, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+        const catL = CATEGORIES.find(c => c.id === p.category)?.label ?? p.category;
+        doc.text(catL.toUpperCase(), x + 19, y + imgAreaH - 3, { align: 'center' });
+
+        // Text info
+        let ty = y + imgAreaH + 6;
+        doc.setTextColor(15, 23, 42); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+        const nameLines = doc.splitTextToSize(p.name, colW - 6) as string[];
+        doc.text(nameLines.slice(0, 2), x + 3, ty); ty += nameLines.slice(0, 2).length * 4.5;
+        if (p.brand) {
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(107, 124, 147);
+          doc.text(p.brand, x + 3, ty); ty += 4;
+        }
+        if (p.description) {
+          doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 130, 150);
+          const descLines = doc.splitTextToSize(p.description, colW - 6) as string[];
+          doc.text(descLines.slice(0, 2), x + 3, ty);
+        }
+        // Price
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 114, 204);
+        doc.text(`S/ ${p.price.toFixed(2)}`, x + colW - 3, y + cardH - 4, { align: 'right' });
+      }
+
+      doc.save(`catalogo-gorra-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      if (openWhatsApp) {
+        const client = clients.find(c => c.id === catalogClientId);
+        if (client?.phone) {
+          const phone = client.phone.replace(/\D/g, '');
+          const fullPhone = phone.startsWith('51') ? phone : `51${phone}`;
+          const msg = encodeURIComponent(`¡Hola ${client.name}! 👋 Le compartimos el catálogo de productos GORRA. Por favor revise las especificaciones y precios. Cualquier consulta, con gusto le atendemos.`);
+          setTimeout(() => window.open(`https://wa.me/${fullPhone}?text=${msg}`, '_blank'), 800);
+        }
+      }
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
   /* ── product form ── */
   const resetImg = () => { setImgFile(null); setImgPreview(''); setImgProgress(0); };
 
@@ -439,6 +605,9 @@ const Store: React.FC = () => {
               </button>
             ))}
           </div>
+          <button onClick={() => setCatalogModal(true)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <BookOpen size={14} /> Catálogo
+          </button>
           <button onClick={openAddProduct} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
             <Plus size={14} /> Agregar Producto
           </button>
@@ -494,13 +663,24 @@ const Store: React.FC = () => {
                           <button onClick={() => removeProduct(product.id)} style={{ padding: 4, background: 'transparent', border: 'none', color: '#E11D48', cursor: 'pointer', fontSize: 12 }} title="Eliminar">🗑</button>
                         </div>
                       </div>
-                      <div style={{ width: '100%', height: 110, borderRadius: 8, overflow: 'hidden', background: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
+                      <div
+                        onClick={() => setLightboxProduct(product)}
+                        onMouseEnter={() => setImgHovered(product.id)}
+                        onMouseLeave={() => setImgHovered(null)}
+                        style={{ position: 'relative', width: '100%', height: 110, borderRadius: 8, overflow: 'hidden', background: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, cursor: 'zoom-in' }}
+                      >
                         {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={product.imageUrl} alt={product.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: imgHovered === product.id ? 'scale(1.12)' : 'scale(1)', transition: 'transform 0.3s ease' }} />
                         ) : (
-                          product.category === 'machinery' ? <Truck size={28} /> :
-                          product.category === 'parts'     ? <Settings size={28} /> :
-                          <Tag size={28} />
+                          <div style={{ transform: imgHovered === product.id ? 'scale(1.12)' : 'scale(1)', transition: 'transform 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {product.category === 'machinery' ? <Truck size={28} /> : product.category === 'parts' ? <Settings size={28} /> : <Tag size={28} />}
+                          </div>
+                        )}
+                        {imgHovered === product.id && (
+                          <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.45)', borderRadius: 4, padding: '2px 5px', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <ZoomIn size={11} style={{ color: '#fff' }} />
+                          </div>
                         )}
                       </div>
                       <div style={{ flex: 1 }}>
@@ -1006,6 +1186,148 @@ const Store: React.FC = () => {
                     style={{ flex: 2, padding: '9px 16px', borderRadius: 6, border: 'none', background: '#E11D48', color: '#fff', fontSize: 13, fontWeight: 600, cursor: returning ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: returning ? 0.7 : 1 }}>
                     <RotateCcw size={14} />{returning ? 'Procesando...' : 'Confirmar Devolución'}
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </Overlay>
+        )}
+      </AnimatePresence>
+
+      {/* ── LIGHTBOX MODAL ───────────────────────────────────── */}
+      <AnimatePresence>
+        {lightboxProduct && (
+          <Overlay onClick={() => setLightboxProduct(null)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              style={{ ...modalBox, maxWidth: 560, display: 'flex', flexDirection: 'column' }}>
+              {/* Image */}
+              <div style={{ position: 'relative', width: '100%', height: 280, background: `${catColor(lightboxProduct.category)}14`, borderRadius: '10px 10px 0 0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {lightboxProduct.imageUrl ? (
+                  <img src={lightboxProduct.imageUrl} alt={lightboxProduct.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ color: catColor(lightboxProduct.category), opacity: 0.4 }}>
+                    {lightboxProduct.category === 'machinery' ? <Truck size={64} /> : lightboxProduct.category === 'parts' ? <Settings size={64} /> : <Tag size={64} />}
+                  </div>
+                )}
+                <button onClick={() => setLightboxProduct(null)}
+                  style={{ position: 'absolute', top: 10, right: 10, width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={16} />
+                </button>
+                <span style={{ position: 'absolute', bottom: 10, left: 10, fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 4, background: catColor(lightboxProduct.category), color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {catLabel(lightboxProduct.category)}
+                </span>
+              </div>
+              {/* Info */}
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <h3 style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>{lightboxProduct.name}</h3>
+                  {lightboxProduct.brand && <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 4 }}>{lightboxProduct.brand}</p>}
+                </div>
+                {lightboxProduct.description && (
+                  <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', lineHeight: 1.6, background: 'hsl(var(--bg-main))', padding: '10px 14px', borderRadius: 6 }}>
+                    {lightboxProduct.description}
+                  </p>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginBottom: 4 }}>
+                      {igvIncluded ? 'Precio c/ IGV incluido' : 'Precio s/ IGV'}
+                    </p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: '#0072CC' }}>S/ {lightboxProduct.price.toFixed(2)}</p>
+                    {igvIncluded && (
+                      <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))' }}>
+                        Sin IGV: S/ {(lightboxProduct.price / 1.18).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))' }}>Stock disponible</p>
+                    <p style={{ fontSize: 20, fontWeight: 700, color: lightboxProduct.stock < 5 ? '#E11D48' : 'hsl(var(--text-primary))' }}>
+                      {lightboxProduct.stock} <span style={{ fontSize: 13, fontWeight: 400 }}>{lightboxProduct.unit ?? 'unid'}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { addToCart(lightboxProduct); setLightboxProduct(null); }}
+                  disabled={lightboxProduct.stock === 0}
+                  className="btn-primary"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14, fontWeight: 600, padding: '11px 0', opacity: lightboxProduct.stock === 0 ? 0.4 : 1 }}
+                >
+                  <ShoppingCart size={16} />
+                  {lightboxProduct.stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
+                </button>
+              </div>
+            </motion.div>
+          </Overlay>
+        )}
+      </AnimatePresence>
+
+      {/* ── CATALOG MODAL ────────────────────────────────────── */}
+      <AnimatePresence>
+        {catalogModal && (
+          <Overlay onClick={() => setCatalogModal(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} style={{ ...modalBox, maxWidth: 460 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid hsl(var(--border))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <BookOpen size={18} style={{ color: '#0072CC' }} />
+                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>Generar Catálogo PDF</h3>
+                </div>
+                <button onClick={() => setCatalogModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(var(--text-secondary))', display: 'flex' }}><X size={18} /></button>
+              </div>
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* Categoría */}
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Incluir productos</p>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {CATEGORIES.map(cat => {
+                      const count = cat.id === 'all' ? products.length : products.filter(p => p.category === cat.id).length;
+                      return (
+                        <button key={cat.id} onClick={() => setCatalogCat(cat.id)}
+                          style={{ padding: '5px 12px', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '1px solid',
+                            borderColor: catalogCat === cat.id ? '#0072CC'             : 'hsl(var(--border))',
+                            background:  catalogCat === cat.id ? '#EBF5FF'             : 'transparent',
+                            color:       catalogCat === cat.id ? '#0072CC'             : 'hsl(var(--text-secondary))' }}
+                        >{cat.label} ({count})</button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Cliente para WhatsApp */}
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <MessageCircle size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                    Enviar a cliente por WhatsApp (opcional)
+                  </p>
+                  <select value={catalogClientId} onChange={e => setCatalogClientId(e.target.value)} style={{ width: '100%', height: 36, fontSize: 13 }}>
+                    <option value="">— Solo descargar PDF —</option>
+                    {clients.filter(c => c.phone).map(c => (
+                      <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {catalogClientId && (
+                  <div style={{ display: 'flex', gap: 8, padding: '10px 12px', background: '#F0FDF4', borderRadius: 6, border: '1px solid #BBF7D0', fontSize: 12, color: '#166534' }}>
+                    <MessageCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>El PDF se descargará y se abrirá WhatsApp Web con el cliente. Solo adjunta el PDF descargado en la conversación.</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+                  <button onClick={() => { generarCatalogo(false); setCatalogModal(false); }}
+                    disabled={catalogLoading}
+                    className="btn-outline"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}>
+                    <Download size={14} /> {catalogLoading ? 'Generando...' : 'Descargar PDF'}
+                  </button>
+                  {catalogClientId && (
+                    <button onClick={() => { generarCatalogo(true); setCatalogModal(false); }}
+                      disabled={catalogLoading}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, padding: '8px 16px', borderRadius: 6, border: 'none', background: '#25D366', color: '#fff', fontWeight: 600, cursor: catalogLoading ? 'not-allowed' : 'pointer' }}>
+                      <MessageCircle size={14} /> Descargar + WhatsApp
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
