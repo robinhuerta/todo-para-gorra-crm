@@ -141,92 +141,167 @@ const CAT_COLORS: Record<string, string> = {
 const generateBoleta = (order: OrderRecord) => {
   const doc = new jsPDF();
   const W = 210;
-  let y = 20;
+  const NAVY:  [number,number,number] = [15,  23,  42];
+  const BLUE:  [number,number,number] = [0,   114, 204];
+  const GRAY:  [number,number,number] = [107, 124, 147];
+  const TEXT:  [number,number,number] = [30,  41,  59];
+  const BORD:  [number,number,number] = [220, 228, 240];
+  const SURF:  [number,number,number] = [248, 250, 252];
 
-  doc.setFillColor(0, 114, 204);
-  doc.rect(0, 0, W, 36, 'F');
+  // ── Header ──────────────────────────────────────────────────
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, W, 44, 'F');
+  doc.setFillColor(...BLUE);
+  doc.rect(0, 40, W, 4, 'F');
+
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
+  doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text('GORRA', W / 2, 16, { align: 'center' });
-  doc.setFontSize(10);
+  doc.text('GORRA', W / 2, 22, { align: 'center' });
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('Boleta de Venta', W / 2, 28, { align: 'center' });
+  doc.setTextColor(148, 179, 215);
+  doc.text('Maquinaria · Repuestos · Insumos · Gorras', W / 2, 33, { align: 'center' });
 
-  y = 50;
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(9);
-  doc.text(`N° Pedido: ${order.id.slice(0, 12).toUpperCase()}`, 15, y);
-  doc.text(`Fecha: ${order.date}`, W - 15, y, { align: 'right' });
-  y += 7;
-  doc.text(`Cliente: ${order.clientName}`, 15, y);
-  doc.text(`Pago: ${PAYMENT_METHODS.find(m => m.id === order.paymentMethod)?.label ?? order.paymentMethod}`, W - 15, y, { align: 'right' });
-  y += 12;
-
-  doc.setDrawColor(220, 228, 240);
-  doc.line(15, y, W - 15, y);
-  y += 8;
-
+  // ── Document badge + N° ──────────────────────────────────────
+  let y = 56;
+  doc.setFillColor(...BLUE);
+  doc.roundedRect(14, y - 7, 58, 12, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(107, 124, 147);
-  doc.text('PRODUCTO', 15, y);
-  doc.text('CANT.', 120, y, { align: 'right' });
-  doc.text('P. UNIT.', 158, y, { align: 'right' });
-  doc.text('TOTAL', W - 15, y, { align: 'right' });
-  y += 5;
-  doc.line(15, y, W - 15, y);
-  y += 7;
+  doc.text('BOLETA DE VENTA', 43, y, { align: 'center' });
 
+  doc.setTextColor(...GRAY);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(15, 23, 42);
-  for (const item of order.items) {
-    doc.setFontSize(9);
-    const nameLines = doc.splitTextToSize(item.name, 95) as string[];
-    doc.text(nameLines, 15, y);
-    const lineH = nameLines.length > 1 ? nameLines.length * 5 : 0;
-    doc.text(String(item.quantity), 120, y, { align: 'right' });
-    doc.text(`S/ ${item.price.toFixed(2)}`, 158, y, { align: 'right' });
-    doc.text(`S/ ${(item.price * item.quantity).toFixed(2)}`, W - 15, y, { align: 'right' });
-    y += 7 + lineH;
+  doc.setFontSize(7.5);
+  doc.text(`N° ${order.id.slice(0, 12).toUpperCase()}`, W - 15, y - 4, { align: 'right' });
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...TEXT);
+  doc.text(order.date, W - 15, y + 3, { align: 'right' });
+
+  y += 14;
+
+  // ── Info cards (cliente | pago) ──────────────────────────────
+  doc.setFillColor(...SURF);
+  doc.setDrawColor(...BORD);
+  doc.roundedRect(14, y, 88, 30, 3, 3, 'FD');
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...BLUE);
+  doc.text('CLIENTE', 20, y + 8);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...TEXT);
+  const cLines = doc.splitTextToSize(order.clientName, 76) as string[];
+  doc.text(cLines, 20, y + 16);
+  if (order.clientRucOrDni) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRAY);
+    doc.text(`RUC/DNI: ${order.clientRucOrDni}`, 20, y + 24);
   }
 
-  y += 4;
-  doc.line(15, y, W - 15, y);
-  y += 8;
+  doc.setFillColor(...SURF);
+  doc.roundedRect(108, y, 88, 30, 3, 3, 'FD');
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...BLUE);
+  doc.text('MÉTODO DE PAGO', 114, y + 8);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...TEXT);
+  doc.text(PAYMENT_METHODS.find(m => m.id === order.paymentMethod)?.label ?? order.paymentMethod, 114, y + 20);
 
-  doc.setFontSize(9);
-  doc.setTextColor(107, 124, 147);
+  y += 40;
+
+  // ── Table header ────────────────────────────────────────────
+  doc.setFillColor(...NAVY);
+  doc.roundedRect(14, y, W - 28, 11, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PRODUCTO', 20, y + 7.5);
+  doc.text('CANT.', 132, y + 7.5, { align: 'right' });
+  doc.text('P. UNIT.', 164, y + 7.5, { align: 'right' });
+  doc.text('TOTAL', W - 18, y + 7.5, { align: 'right' });
+  y += 13;
+
+  // ── Table rows ──────────────────────────────────────────────
+  let rowIdx = 0;
+  for (const item of order.items) {
+    const nameLines = doc.splitTextToSize(item.name, 104) as string[];
+    const rowH = Math.max(10, nameLines.length * 5 + 4);
+    if (rowIdx % 2 === 0) {
+      doc.setFillColor(...SURF);
+      doc.rect(14, y - 1, W - 28, rowH, 'F');
+    }
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...TEXT);
+    doc.text(nameLines, 20, y + 5);
+    doc.setTextColor(...GRAY);
+    doc.text(String(item.quantity), 132, y + 5, { align: 'right' });
+    doc.setTextColor(...TEXT);
+    doc.text(`S/ ${item.price.toFixed(2)}`, 164, y + 5, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`S/ ${(item.price * item.quantity).toFixed(2)}`, W - 18, y + 5, { align: 'right' });
+    y += rowH;
+    rowIdx++;
+  }
+
+  doc.setDrawColor(...BORD);
+  doc.line(14, y, W - 14, y);
+  y += 10;
+
+  // ── Totals ──────────────────────────────────────────────────
   const totRows: [string, string][] = [
     ['Valor de venta (sin IGV)', `S/ ${order.subtotal.toFixed(2)}`],
     ['IGV (18%)',                `S/ ${order.tax.toFixed(2)}`],
   ];
   if (order.discountAmount && order.discountAmount > 0) {
-    const dLabel = order.discountType === 'percent'
-      ? `Descuento (${order.discountValue}%)`
-      : `Descuento (S/ ${order.discountValue?.toFixed(2)})`;
-    totRows.push([dLabel, `-S/ ${order.discountAmount.toFixed(2)}`]);
+    totRows.push([
+      order.discountType === 'percent'
+        ? `Descuento (${order.discountValue}%)`
+        : `Descuento (S/ ${order.discountValue?.toFixed(2)})`,
+      `-S/ ${order.discountAmount.toFixed(2)}`,
+    ]);
   }
+  doc.setFontSize(9);
   for (const [label, val] of totRows) {
-    doc.text(label, 120, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRAY);
+    doc.text(label, 122, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...TEXT);
     doc.text(val, W - 15, y, { align: 'right' });
-    y += 6;
+    y += 7;
   }
 
-  y += 2;
-  doc.setFillColor(235, 245, 255);
-  doc.roundedRect(110, y - 5, W - 125, 13, 2, 2, 'F');
+  y += 3;
+  doc.setFillColor(...NAVY);
+  doc.roundedRect(112, y - 5, W - 126, 14, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.setTextColor(0, 114, 204);
-  doc.text('TOTAL', 120, y + 3);
-  doc.text(`S/ ${order.total.toFixed(2)}`, W - 15, y + 3, { align: 'right' });
+  doc.setTextColor(255, 255, 255);
+  doc.text('TOTAL', 122, y + 4);
+  doc.text(`S/ ${order.total.toFixed(2)}`, W - 15, y + 4, { align: 'right' });
 
-  y += 22;
+  // ── Footer ──────────────────────────────────────────────────
+  y += 20;
+  doc.setFillColor(...NAVY);
+  doc.rect(0, y, W, 18, 'F');
+  doc.setFillColor(...BLUE);
+  doc.rect(0, y, W, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Gracias por su preferencia', W / 2, y + 9, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(160, 170, 185);
-  doc.text('Gracias por su compra — GORRA CRM', W / 2, y, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 179, 215);
+  doc.text('GORRA CRM · Lima, Perú', W / 2, y + 15, { align: 'center' });
 
   doc.save(`boleta-${order.clientName.replace(/\s/g, '_')}-${order.date}.pdf`);
 };
