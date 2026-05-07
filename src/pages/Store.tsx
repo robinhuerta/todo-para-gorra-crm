@@ -361,15 +361,13 @@ const Store: React.FC = () => {
         tax,
         total:         finalTotal,
         igvIncluded,
-        discountType:  discountValue > 0 ? discountType  : undefined,
-        discountValue: discountValue > 0 ? discountValue : undefined,
-        discountAmount: discountValue > 0 ? discountAmount : undefined,
         paymentMethod: payMethod,
-        clientName:      saleClient?.name || 'Cliente General',
-        clientId:        saleClient?.id,
-        clientRucOrDni:  saleClient?.rucOrDni,
+        clientName:    saleClient?.name || 'Cliente General',
         date:          new Date().toISOString().split('T')[0],
         status:        'Completado',
+        ...(saleClient?.id        && { clientId:       saleClient.id }),
+        ...(saleClient?.rucOrDni  && { clientRucOrDni: saleClient.rucOrDni }),
+        ...(discountValue > 0     && { discountType, discountValue, discountAmount }),
       };
       await addOrder(orderPayload);
       await Promise.all(
@@ -385,8 +383,9 @@ const Store: React.FC = () => {
       setDiscountValue(0);
       setConfirmOpen(false);
       setSuccessOpen(true);
-    } catch {
-      /* silent */
+    } catch (err) {
+      setFormError(`Error al guardar: ${err instanceof Error ? err.message : 'intenta de nuevo'}`);
+      setConfirmOpen(false);
     } finally {
       setConfirming(false);
     }
