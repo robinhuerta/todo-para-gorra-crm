@@ -53,6 +53,9 @@ interface OrderRecord {
   clientName: string;
   date: string;
   status: string;
+  comprobanteTipo?: 'boleta' | 'factura';
+  comprobanteNumero?: string;
+  comprobanteFecha?: string;
 }
 
 /* ─── Constants ──────────────────────────────────────────────── */
@@ -279,6 +282,11 @@ const Store: React.FC = () => {
   const [catalogClientId, setCatalogClientId] = useState('');
   const [catalogCat, setCatalogCat]           = useState('all');
 
+  /* comprobantes */
+  const [filterPendiente, setFilterPendiente]   = useState(false);
+  const [comprobanteForm, setComprobanteForm]   = useState<{ tipo: 'boleta' | 'factura'; numero: string }>({ tipo: 'boleta', numero: '' });
+  const [savingComprobante, setSavingComprobante] = useState(false);
+
   /* ── cart calculations ── */
   const subtotal     = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
   const baseAmount   = igvIncluded ? subtotal / 1.18 : subtotal;
@@ -293,10 +301,13 @@ const Store: React.FC = () => {
   const cartQty      = cart.reduce((s, i) => s + i.quantity, 0);
 
   /* ── filtered orders ── */
+  const pendingComprobantes = orders.filter(o => o.status === 'Completado' && !o.comprobanteNumero).length;
+
   const filteredOrders = [...orders].reverse().filter(o => {
     if (orderSearch && !o.clientName.toLowerCase().includes(orderSearch.toLowerCase())) return false;
     if (dateFrom && o.date < dateFrom) return false;
     if (dateTo   && o.date > dateTo)   return false;
+    if (filterPendiente && (o.status !== 'Completado' || !!o.comprobanteNumero)) return false;
     return true;
   });
 
@@ -395,6 +406,24 @@ const Store: React.FC = () => {
       /* silent */
     } finally {
       setReturning(false);
+    }
+  };
+
+  /* ── comprobante ── */
+  const handleSaveComprobante = async () => {
+    if (!selectedOrder || !comprobanteForm.numero.trim()) return;
+    setSavingComprobante(true);
+    try {
+      const update = {
+        comprobanteTipo:   comprobanteForm.tipo,
+        comprobanteNumero: comprobanteForm.numero.trim().toUpperCase(),
+        comprobanteFecha:  new Date().toISOString().split('T')[0],
+      };
+      await updateOrder(selectedOrder.id, update);
+      setSelectedOrder(prev => prev ? { ...prev, ...update } : null);
+      setComprobanteForm({ tipo: 'boleta', numero: '' });
+    } finally {
+      setSavingComprobante(false);
     }
   };
 
@@ -597,7 +626,12 @@ const Store: React.FC = () => {
                   color:      view === v.id ? '#fff'    : 'hsl(var(--text-secondary))' }}
               >
                 <v.icon size={14} /> {v.label}
-                {v.id === 'orders' && orders.length > 0 && (
+                {v.id === 'orders' && pendingComprobantes > 0 && (
+                  <span style={{ background: '#EA580C', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10 }} title={`${pendingComprobantes} sin comprobante`}>
+                    {pendingComprobantes}
+                  </span>
+                )}
+                {v.id === 'orders' && pendingComprobantes === 0 && orders.length > 0 && (
                   <span style={{ background: view === v.id ? 'rgba(255,255,255,0.25)' : '#0072CC', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10 }}>
                     {orders.length}
                   </span>
@@ -882,18 +916,46 @@ const Store: React.FC = () => {
 
           {/* Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-            {[
-              { label: 'Total Pedidos',    value: orders.length },
-              { label: 'Ingresos',         value: `S/ ${orders.filter(o => o.status === 'Completado').reduce((s, o) => s + (o.total || 0), 0).toFixed(2)}` },
-              { label: 'Completados',      value: orders.filter(o => o.status === 'Completado').length },
-              { label: 'Devueltos',        value: orders.filter(o => o.status === 'Devuelto').length },
-            ].map((s, i) => (
-              <div key={i} className="card" style={{ padding: '14px 18px' }}>
-                <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', fontWeight: 500, marginBottom: 4 }}>{s.label}</p>
-                <p style={{ fontSize: 20, fontWeight: 700 }}>{s.value}</p>
-              </div>
-            ))}
+            <div className="card" style={{ padding: '14px 18px' }}>
+              <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', fontWeight: 500, marginBottom: 4 }}>Total Pedidos</p>
+              <p style={{ fontSize: 20, fontWeight: 700 }}>{orders.length}</p>
+            </div>
+            <div className="card" style={{ padding: '14px 18px' }}>
+              <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', fontWeight: 500, marginBottom: 4 }}>Ingresos</p>
+              <p style={{ fontSize: 20, fontWeight: 700 }}>S/ {orders.filter(o => o.status === 'Completado').reduce((s, o) => s + (o.total || 0), 0).toFixed(2)}</p>
+            </div>
+            <div className="card" style={{ padding: '14px 18px' }}>
+              <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', fontWeight: 500, marginBottom: 4 }}>Completados</p>
+              <p style={{ fontSize: 20, fontWeight: 700 }}>{orders.filter(o => o.status === 'Completado').length}</p>
+            </div>
+            <div className="card" onClick={() => setFilterPendiente(v => !v)}
+              style={{ padding: '14px 18px', cursor: 'pointer', border: `1px solid ${filterPendiente ? '#EA580C' : 'hsl(var(--border))'}`, background: filterPendiente ? '#FFF7ED' : undefined, transition: 'all 0.15s' }}>
+              <p style={{ fontSize: 11, fontWeight: 500, marginBottom: 4, color: pendingComprobantes > 0 ? '#EA580C' : 'hsl(var(--text-secondary))' }}>Sin Comprobante SUNAT</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: pendingComprobantes > 0 ? '#EA580C' : 'hsl(var(--text-primary))' }}>{pendingComprobantes}</p>
+            </div>
           </div>
+
+          {/* Alerta comprobantes pendientes */}
+          {pendingComprobantes > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertCircle size={15} style={{ color: '#EA580C', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: '#9A3412' }}>
+                  <strong>{pendingComprobantes} venta{pendingComprobantes !== 1 ? 's' : ''}</strong> sin comprobante emitido en SUNAT
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => window.open('https://e-menu.sunat.gob.pe/cl-ti-itmenu/MenuInternet.htm', '_blank')}
+                  style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 5, border: 'none', background: '#EA580C', color: '#fff', cursor: 'pointer' }}>
+                  Ir a SUNAT
+                </button>
+                <button onClick={() => setFilterPendiente(v => !v)}
+                  style={{ fontSize: 12, fontWeight: 500, padding: '5px 12px', borderRadius: 5, border: '1px solid #FED7AA', background: filterPendiente ? '#EA580C' : 'transparent', color: filterPendiente ? '#fff' : '#9A3412', cursor: 'pointer' }}>
+                  {filterPendiente ? 'Ver todos' : 'Ver pendientes'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Filtros */}
           <div className="card" style={{ padding: '12px 14px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -927,12 +989,13 @@ const Store: React.FC = () => {
                     <th style={{ padding: '10px 16px' }}>Total</th>
                     <th style={{ padding: '10px 16px' }}>Pago</th>
                     <th style={{ padding: '10px 16px' }}>Estado</th>
+                    <th style={{ padding: '10px 16px' }}>Comprobante</th>
                     <th style={{ padding: '10px 16px' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOrders.length === 0 ? (
-                    <tr><td colSpan={8} style={{ padding: 48, textAlign: 'center', color: 'hsl(var(--text-secondary))', fontSize: 13 }}>No hay pedidos.</td></tr>
+                    <tr><td colSpan={9} style={{ padding: 48, textAlign: 'center', color: 'hsl(var(--text-secondary))', fontSize: 13 }}>No hay pedidos.</td></tr>
                   ) : filteredOrders.map(order => {
                     const s = statusBadge(order.status);
                     return (
@@ -957,6 +1020,19 @@ const Store: React.FC = () => {
                           <span style={{ padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
                             {order.status}
                           </span>
+                        </td>
+                        <td style={{ padding: '11px 16px' }}>
+                          {order.status === 'Completado' && (
+                            order.comprobanteNumero
+                              ? <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <CheckCircle2 size={12} /> {order.comprobanteNumero}
+                                </span>
+                              : <span onClick={e => { e.stopPropagation(); setSelectedOrder(order); }}
+                                  style={{ fontSize: 11, fontWeight: 600, color: '#EA580C', background: '#FFF7ED', border: '1px solid #FED7AA', padding: '2px 7px', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <AlertCircle size={11} /> Pendiente
+                                </span>
+                          )}
+                          {order.status === 'Devuelto' && <span style={{ color: 'hsl(var(--text-secondary))', fontSize: 12 }}>—</span>}
                         </td>
                         <td style={{ padding: '11px 16px' }} onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: 6 }}>
@@ -1134,6 +1210,61 @@ const Store: React.FC = () => {
                     <span>Total</span><span style={{ color: '#0072CC' }}>S/ {selectedOrder.total.toFixed(2)}</span>
                   </div>
                 </div>
+
+                {/* Comprobante SUNAT */}
+                {selectedOrder.status === 'Completado' && (
+                  <div style={{ borderTop: '1px solid hsl(var(--border))', paddingTop: 14 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                      Comprobante SUNAT
+                    </p>
+                    {selectedOrder.comprobanteNumero ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#ECFDF5', borderRadius: 6, border: '1px solid #A7F3D0' }}>
+                        <CheckCircle2 size={16} style={{ color: '#059669', flexShrink: 0 }} />
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: '#065F46' }}>
+                            {selectedOrder.comprobanteTipo === 'boleta' ? 'Boleta' : 'Factura'} — {selectedOrder.comprobanteNumero}
+                          </p>
+                          <p style={{ fontSize: 11, color: '#059669' }}>Emitido el {selectedOrder.comprobanteFecha}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', background: '#FFF7ED', borderRadius: 6, border: '1px solid #FED7AA' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9A3412' }}>
+                          <AlertCircle size={13} />
+                          <span>Emite el comprobante en SUNAT y regístralo aquí.</span>
+                          <button onClick={() => window.open('https://e-menu.sunat.gob.pe/cl-ti-itmenu/MenuInternet.htm', '_blank')}
+                            style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, border: 'none', background: '#EA580C', color: '#fff', cursor: 'pointer', flexShrink: 0 }}>
+                            Ir a SUNAT
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <div style={{ display: 'flex', border: '1px solid hsl(var(--border))', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
+                            {(['boleta', 'factura'] as const).map(t => (
+                              <button key={t} onClick={() => setComprobanteForm(f => ({ ...f, tipo: t }))}
+                                style={{ padding: '0 10px', height: 34, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', textTransform: 'capitalize',
+                                  background: comprobanteForm.tipo === t ? '#0072CC' : 'transparent',
+                                  color:      comprobanteForm.tipo === t ? '#fff'    : 'hsl(var(--text-secondary))' }}>
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Ej: B001-00001 o F001-00001"
+                            value={comprobanteForm.numero}
+                            onChange={e => setComprobanteForm(f => ({ ...f, numero: e.target.value.toUpperCase() }))}
+                            style={{ flex: 1, height: 34, fontSize: 13 }}
+                          />
+                        </div>
+                        <button onClick={handleSaveComprobante} disabled={savingComprobante || !comprobanteForm.numero.trim()}
+                          className="btn-primary"
+                          style={{ width: '100%', fontSize: 13, padding: '8px 0', opacity: !comprobanteForm.numero.trim() ? 0.5 : 1 }}>
+                          {savingComprobante ? 'Guardando...' : 'Registrar Comprobante'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8 }}>
