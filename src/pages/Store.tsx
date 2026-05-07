@@ -1237,6 +1237,42 @@ const Store: React.FC = () => {
                             Ir a SUNAT
                           </button>
                         </div>
+
+                        {/* Resumen para copiar en SUNAT */}
+                        {(() => {
+                          const igvInc = selectedOrder.igvIncluded ?? true;
+                          const unitSinIgv = (price: number) => igvInc ? price / 1.18 : price;
+                          const lines = [
+                            `Fecha: ${selectedOrder.date}`,
+                            `Cliente: ${selectedOrder.clientName}`,
+                            ``,
+                            `ITEMS (valores sin IGV):`,
+                            ...(selectedOrder.items ?? []).map((it, i) =>
+                              `${i + 1}. ${it.name}  |  Cant: ${it.quantity} ${it.unit}  |  V.Unit: S/ ${unitSinIgv(it.price).toFixed(2)}  |  Total: S/ ${(unitSinIgv(it.price) * it.quantity).toFixed(2)}`
+                            ),
+                            ``,
+                            `Valor de venta (sin IGV): S/ ${selectedOrder.subtotal.toFixed(2)}`,
+                            `IGV 18%: S/ ${selectedOrder.tax.toFixed(2)}`,
+                            ...(selectedOrder.discountAmount ? [`Descuento: -S/ ${selectedOrder.discountAmount.toFixed(2)}`] : []),
+                            `TOTAL: S/ ${selectedOrder.total.toFixed(2)}`,
+                          ];
+                          const texto = lines.join('\n');
+                          return (
+                            <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 5, border: '1px solid #FED7AA', overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid #FED7AA' }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#9A3412', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Datos para SUNAT</span>
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(texto)}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 4, border: 'none', background: '#EA580C', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  Copiar
+                                </button>
+                              </div>
+                              <pre style={{ margin: 0, padding: '8px 10px', fontSize: 11, lineHeight: 1.6, color: '#7C2D12', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {texto}
+                              </pre>
+                            </div>
+                          );
+                        })()}
                         <div style={{ display: 'flex', gap: 8 }}>
                           <div style={{ display: 'flex', border: '1px solid hsl(var(--border))', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
                             {(['boleta', 'factura'] as const).map(t => (
