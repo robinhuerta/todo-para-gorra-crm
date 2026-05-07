@@ -301,10 +301,10 @@ const Clients: React.FC = () => {
                   ))}
                 </div>
 
-                {(selectedClient as any).rucOrDni && (
+                {selectedClient.rucOrDni && (
                   <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid hsl(var(--border))' }}>
                     <p style={{ fontSize: 10, fontWeight: 600, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>RUC / DNI</p>
-                    <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'monospace' }}>{(selectedClient as any).rucOrDni}</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'monospace' }}>{selectedClient.rucOrDni}</p>
                   </div>
                 )}
 
@@ -406,7 +406,7 @@ const Clients: React.FC = () => {
                     <input type="text" placeholder="Ej: Textiles Lima SAC" value={formData.company} onChange={e => set('company', e.target.value)} style={{ height: 36 }} />
                   </Field>
                   <Field label="RUC / DNI">
-                    <input type="text" placeholder="Ej: 20123456789 o 12345678" value={(formData as any).rucOrDni || ''} onChange={e => set('rucOrDni' as any, e.target.value)} style={{ height: 36 }} />
+                    <input type="text" placeholder="Ej: 20123456789 o 12345678" value={formData.rucOrDni || ''} onChange={e => set('rucOrDni', e.target.value)} style={{ height: 36 }} />
                   </Field>
                   <Field label="Correo electrónico" required>
                     <input type="email" placeholder="correo@empresa.com" value={formData.email} onChange={e => set('email', e.target.value)} style={{ height: 36 }} />

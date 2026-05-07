@@ -1175,7 +1175,7 @@ const Store: React.FC = () => {
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'hsl(var(--text-secondary))' }}>
-                  <span>Cliente</span><span style={{ fontWeight: 500 }}>{clientName || 'Cliente General'}</span>
+                  <span>Cliente</span><span style={{ fontWeight: 500 }}>{saleClient?.name || 'Cliente General'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'hsl(var(--text-secondary))' }}>
                   <span>Método de pago</span>
