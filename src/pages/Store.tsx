@@ -51,6 +51,8 @@ interface OrderRecord {
   igvIncluded?: boolean;
   paymentMethod: string;
   clientName: string;
+  clientId?: string;
+  clientRucOrDni?: string;
   date: string;
   status: string;
   comprobanteTipo?: 'boleta' | 'factura';
@@ -234,7 +236,7 @@ const Store: React.FC = () => {
   /* data */
   const { data: products, loading, add: addProduct, update: updateProduct, remove: removeProduct } = useFirestore<Product>('inventory');
   const { data: orders, add: addOrder, update: updateOrder } = useFirestore<OrderRecord>('orders');
-  const { data: clients } = useFirestore<{ id: string; name: string; phone: string }>('clients');
+  const { data: clients } = useFirestore<{ id: string; name: string; rucOrDni?: string; phone: string; company?: string; type?: string }>('clients');
 
   /* ui state */
   const [view, setView]             = useState<'store' | 'orders'>('store');
@@ -242,7 +244,9 @@ const Store: React.FC = () => {
   const [search, setSearch]         = useState('');
   const [cart, setCart]             = useState<CartItem[]>([]);
   const [payMethod, setPayMethod]   = useState('cash');
-  const [clientName, setClientName] = useState('');
+  const [saleClient, setSaleClient]         = useState<{ id: string; name: string; rucOrDni?: string; phone: string; company?: string } | null>(null);
+  const [clientSearch, setClientSearch]     = useState('');
+  const [clientDropdown, setClientDropdown] = useState(false);
   const [confirmOpen, setConfirmOpen]   = useState(false);
   const [successOpen, setSuccessOpen]   = useState(false);
   const [productModal, setProductModal] = useState(false);
@@ -361,7 +365,9 @@ const Store: React.FC = () => {
         discountValue: discountValue > 0 ? discountValue : undefined,
         discountAmount: discountValue > 0 ? discountAmount : undefined,
         paymentMethod: payMethod,
-        clientName:    clientName || 'Cliente General',
+        clientName:      saleClient?.name || 'Cliente General',
+        clientId:        saleClient?.id,
+        clientRucOrDni:  saleClient?.rucOrDni,
         date:          new Date().toISOString().split('T')[0],
         status:        'Completado',
       };
@@ -374,7 +380,7 @@ const Store: React.FC = () => {
       );
       setLastSavedOrder({ ...orderPayload, id: `tmp-${Date.now()}` });
       setCart([]);
-      setClientName('');
+      setSaleClient(null);
       setPayMethod('cash');
       setDiscountValue(0);
       setConfirmOpen(false);
@@ -671,6 +677,25 @@ const Store: React.FC = () => {
               </div>
             </div>
 
+            {/* Stock bajo */}
+            {(() => {
+              const agotados  = products.filter(p => p.stock === 0);
+              const stockBajo = products.filter(p => p.stock > 0 && p.stock <= 3);
+              if (agotados.length === 0 && stockBajo.length === 0) return null;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, fontSize: 12 }}>
+                  <AlertCircle size={14} style={{ color: '#EA580C', flexShrink: 0 }} />
+                  <span style={{ color: '#9A3412', flex: 1 }}>
+                    {agotados.length > 0 && <><strong>{agotados.length} agotado{agotados.length !== 1 ? 's' : ''}</strong>{stockBajo.length > 0 ? ' · ' : ''}</>}
+                    {stockBajo.length > 0 && <><strong>{stockBajo.length}</strong> con stock bajo (≤3)</>}
+                  </span>
+                  <a href="/inventory" style={{ fontSize: 12, fontWeight: 600, color: '#EA580C', textDecoration: 'none' }}>
+                    Ir a Inventario →
+                  </a>
+                </div>
+              );
+            })()}
+
             {loading ? (
               <p style={{ textAlign: 'center', padding: 40, color: 'hsl(var(--text-secondary))', fontSize: 13 }}>Cargando productos...</p>
             ) : filtered.length === 0 ? (
@@ -838,8 +863,60 @@ const Store: React.FC = () => {
                 </div>
 
                 {/* Cliente */}
-                <div style={{ padding: '0 16px 10px' }}>
-                  <input type="text" placeholder="Cliente (opcional)" value={clientName} onChange={e => setClientName(e.target.value)} style={{ width: '100%', height: 34, fontSize: 13 }} />
+                <div style={{ padding: '0 16px 10px', position: 'relative' }}>
+                  {saleClient ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#EBF5FF', border: '1px solid #BFDBFE', borderRadius: 6 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: '#0072CC', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                        {saleClient.name.charAt(0)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#0072CC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{saleClient.name}</p>
+                        {saleClient.rucOrDni && <p style={{ fontSize: 10, color: '#1D4ED8' }}>RUC/DNI: {saleClient.rucOrDni}</p>}
+                      </div>
+                      <button onClick={() => setSaleClient(null)} style={{ background: 'none', border: 'none', color: '#0072CC', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ position: 'relative' }}>
+                        <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-secondary))', pointerEvents: 'none' }} />
+                        <input
+                          type="text"
+                          placeholder="Buscar cliente..."
+                          value={clientSearch}
+                          onChange={e => { setClientSearch(e.target.value); setClientDropdown(true); }}
+                          onFocus={() => setClientDropdown(true)}
+                          onBlur={() => setTimeout(() => setClientDropdown(false), 150)}
+                          style={{ width: '100%', height: 34, fontSize: 13, paddingLeft: 28 }}
+                        />
+                      </div>
+                      {clientDropdown && (
+                        <div style={{ position: 'absolute', left: 16, right: 16, top: '100%', zIndex: 100, background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 180, overflowY: 'auto' }}>
+                          {clients
+                            .filter(c => !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase()) || (c.company ?? '').toLowerCase().includes(clientSearch.toLowerCase()))
+                            .slice(0, 8)
+                            .map(c => (
+                              <div key={c.id}
+                                onMouseDown={() => { setSaleClient(c); setClientSearch(''); setClientDropdown(false); }}
+                                style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}
+                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(var(--accent))'}
+                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                              >
+                                <div>
+                                  <p style={{ fontWeight: 500 }}>{c.name}</p>
+                                  {c.company && <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))' }}>{c.company}</p>}
+                                </div>
+                                {c.rucOrDni && <span style={{ fontSize: 10, color: 'hsl(var(--text-secondary))' }}>{c.rucOrDni}</span>}
+                              </div>
+                            ))}
+                          {clients.filter(c => !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                            <p style={{ padding: '10px 12px', fontSize: 12, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>No se encontraron clientes</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Método de pago */}
@@ -1245,6 +1322,7 @@ const Store: React.FC = () => {
                           const lines = [
                             `Fecha: ${selectedOrder.date}`,
                             `Cliente: ${selectedOrder.clientName}`,
+                            ...(selectedOrder.clientRucOrDni ? [`RUC/DNI: ${selectedOrder.clientRucOrDni}`] : []),
                             ``,
                             `ITEMS (valores sin IGV):`,
                             ...(selectedOrder.items ?? []).map((it, i) =>

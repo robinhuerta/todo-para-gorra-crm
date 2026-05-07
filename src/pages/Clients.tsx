@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
   Search, Filter, Mail, Phone, MapPin,
   UserPlus, ArrowLeft, Calendar, Activity, PlusCircle,
-  FileText, Clock, ChevronRight, X, AlertCircle, Edit, Trash2,
+  FileText, ChevronRight, X, AlertCircle, Edit, Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFirestore } from '../hooks/useFirestore';
@@ -12,6 +12,7 @@ import { useFirestore } from '../hooks/useFirestore';
 interface Client {
   id: string;
   name: string;
+  rucOrDni?: string;
   company: string;
   email: string;
   phone: string;
@@ -23,7 +24,7 @@ interface Client {
 type FormData = Omit<Client, 'id'>;
 
 const EMPTY_FORM: FormData = {
-  name: '', company: '', email: '', phone: '',
+  name: '', rucOrDni: '', company: '', email: '', phone: '',
   address: '', type: 'Corporativo', status: 'Prospecto',
 };
 
@@ -67,6 +68,7 @@ const Field: React.FC<{ label: string; required?: boolean; children: React.React
 /* ═══════════════════════════════════════════════════════════════ */
 const Clients: React.FC = () => {
   const { data: clients, add, update, remove } = useFirestore<Client>('clients');
+  const { data: allOrders } = useFirestore<{ id: string; clientId?: string; clientName: string; total: number; date: string; status: string; items: { name: string; quantity: number; price: number }[] }>('orders');
 
   const [searchTerm, setSearchTerm]         = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -94,7 +96,7 @@ const Clients: React.FC = () => {
   const openEdit = (c: Client, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setEditClient(c);
-    setFormData({ name: c.name, company: c.company, email: c.email, phone: c.phone, address: c.address || '', type: c.type, status: c.status });
+    setFormData({ name: c.name, rucOrDni: c.rucOrDni || '', company: c.company, email: c.email, phone: c.phone, address: c.address || '', type: c.type, status: c.status });
     setFormError('');
     setModalOpen(true);
   };
@@ -128,6 +130,12 @@ const Clients: React.FC = () => {
   };
 
   const set = (k: keyof FormData, v: string) => setFormData(f => ({ ...f, [k]: v }));
+
+  /* ── client orders ── */
+  const clientOrders = selectedClient
+    ? allOrders.filter(o => o.clientId === selectedClient.id || o.clientName === selectedClient.name)
+    : [];
+  const totalGastado = clientOrders.filter(o => o.status === 'Completado').reduce((s, o) => s + (o.total || 0), 0);
 
   /* ── status stepper (update on click) ── */
   const handleStatusChange = async (client: Client, newStatus: string) => {
@@ -293,6 +301,13 @@ const Clients: React.FC = () => {
                   ))}
                 </div>
 
+                {(selectedClient as any).rucOrDni && (
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid hsl(var(--border))' }}>
+                    <p style={{ fontSize: 10, fontWeight: 600, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>RUC / DNI</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'monospace' }}>{(selectedClient as any).rucOrDni}</p>
+                  </div>
+                )}
+
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid hsl(var(--border))' }}>
                   <p style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Tipo</p>
                   <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 4, ...typeStyle(selectedClient.type) }}>
@@ -313,34 +328,42 @@ const Clients: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {[{ label: 'Días en Embudo', value: '—', color: '#0ea5e9' }, { label: 'Proformas', value: '—', color: '#f59e0b' }].map((m, i) => (
-                    <div key={i} className="card" style={{ padding: '14px 16px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 500, color: 'hsl(var(--text-secondary))', marginBottom: 4 }}>{m.label}</p>
-                      <h3 style={{ fontSize: 24, fontWeight: 700, color: m.color }}>{m.value}</h3>
-                    </div>
-                  ))}
+                  <div className="card" style={{ padding: '14px 16px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 500, color: 'hsl(var(--text-secondary))', marginBottom: 4 }}>Total Compras</p>
+                    <h3 style={{ fontSize: 24, fontWeight: 700, color: '#0072CC' }}>{clientOrders.filter(o => o.status === 'Completado').length}</h3>
+                  </div>
+                  <div className="card" style={{ padding: '14px 16px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 500, color: 'hsl(var(--text-secondary))', marginBottom: 4 }}>Total Gastado</p>
+                    <h3 style={{ fontSize: 20, fontWeight: 700, color: '#059669' }}>S/ {totalGastado.toFixed(2)}</h3>
+                  </div>
                 </div>
 
                 <div className="card" style={{ padding: '18px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <h4 style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Activity size={14} style={{ color: '#0072CC' }} /> Historial Comercial
-                    </h4>
-                    <button style={{ fontSize: 12, color: '#0072CC', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Ver todo</button>
-                  </div>
-                  {[{ icon: FileText, label: 'Proforma PF-0842 validada', time: 'Hace 2 días' }, { icon: Clock, label: 'Llamada comercial programada', time: 'Ayer' }].map((item, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 10px', borderRadius: 6, alignItems: 'flex-start' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(var(--accent))'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-                      <div style={{ width: 30, height: 30, borderRadius: 6, background: 'hsl(var(--bg-main))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}>
-                        <item.icon size={14} />
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 500 }}>{item.label}</p>
-                        <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{item.time}</p>
-                      </div>
+                  <h4 style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                    <Activity size={14} style={{ color: '#0072CC' }} /> Historial de Compras
+                  </h4>
+                  {clientOrders.length === 0 ? (
+                    <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', textAlign: 'center', padding: '20px 0' }}>Sin compras registradas aún.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {[...clientOrders].reverse().slice(0, 8).map(order => (
+                        <div key={order.id} style={{ display: 'flex', gap: 10, padding: '9px 10px', borderRadius: 6, alignItems: 'center', justifyContent: 'space-between' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(var(--accent))'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                            <div style={{ width: 30, height: 30, borderRadius: 6, background: order.status === 'Completado' ? '#ECFDF5' : '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <FileText size={14} style={{ color: order.status === 'Completado' ? '#059669' : '#EA580C' }} />
+                            </div>
+                            <div>
+                              <p style={{ fontSize: 13, fontWeight: 500 }}>{order.items?.length || 0} producto{(order.items?.length || 0) !== 1 ? 's' : ''}</p>
+                              <p style={{ fontSize: 11, color: 'hsl(var(--text-secondary))' }}>{order.date} · {order.status}</p>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0072CC' }}>S/ {(order.total || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -381,6 +404,9 @@ const Clients: React.FC = () => {
                   </Field>
                   <Field label="Empresa">
                     <input type="text" placeholder="Ej: Textiles Lima SAC" value={formData.company} onChange={e => set('company', e.target.value)} style={{ height: 36 }} />
+                  </Field>
+                  <Field label="RUC / DNI">
+                    <input type="text" placeholder="Ej: 20123456789 o 12345678" value={(formData as any).rucOrDni || ''} onChange={e => set('rucOrDni' as any, e.target.value)} style={{ height: 36 }} />
                   </Field>
                   <Field label="Correo electrónico" required>
                     <input type="email" placeholder="correo@empresa.com" value={formData.email} onChange={e => set('email', e.target.value)} style={{ height: 36 }} />

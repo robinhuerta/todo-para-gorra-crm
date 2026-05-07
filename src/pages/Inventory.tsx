@@ -80,6 +80,7 @@ const Inventory: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: items, loading, add, update, remove } = useFirestore<InventoryItem>('inventory');
+  const { data: orders } = useFirestore<{ id: string; items: { productId?: string; name: string; quantity: number }[]; status: string }>('orders');
 
   const counts = {
     machinery: items.filter(i => i.category === 'machinery').length,
@@ -94,6 +95,14 @@ const Inventory: React.FC = () => {
       (item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
        item.brand.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const unitsSold = (itemId: string, itemName: string) =>
+    orders
+      .filter(o => o.status === 'Completado')
+      .reduce((total, o) => {
+        const match = (o.items ?? []).find(i => i.productId === itemId || i.name === itemName);
+        return total + (match?.quantity ?? 0);
+      }, 0);
 
   /* ── open modal ── */
   const resetImageState = () => {
@@ -647,6 +656,10 @@ const Inventory: React.FC = () => {
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{row.value}</span>
                   </div>
                 ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'hsl(var(--text-secondary))' }}>Unidades vendidas</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>{unitsSold(viewItem.id, viewItem.name)}</span>
+                </div>
 
                 {viewItem.description && (
                   <div style={{ padding: '10px 12px', borderRadius: 6, background: 'hsl(var(--bg-main))', border: '1px solid hsl(var(--border))' }}>
